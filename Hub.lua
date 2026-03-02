@@ -1,9 +1,8 @@
 -- ╔══════════════════════════════════════════════════════════╗
--- ║               HUB UI — MÓDULO v6.4                      ║
--- ║  + CriarDropdown v2.0 — busca em tempo real             ║
--- ║  + Multi-select, scroll, fechar ao clicar fora          ║
--- ║  + ColorPicker HSV corrigido (PC e Mobile)              ║
--- ║  + CriarDropdown com :AtualizarOpcoes()                 ║
+-- ║               HUB UI — MÓDULO v6.5                      ║
+-- ║  + CriarDropdown v3.0 — parâmetros diretos              ║
+-- ║  + Botão fechar com X unicode limpo                     ║
+-- ║  + Slider v2 — steps, snap, valor float, label unidade  ║
 -- ╚══════════════════════════════════════════════════════════╝
 
 local Hub = {}
@@ -259,17 +258,20 @@ function Hub.novo(nome, tema, velocidade)
 	btnMin.AutoButtonColor=false; btnMin.ZIndex=12; btnMin.Parent=topbar
 	Cantos(btnMin,99); RegCor(btnMin,"BackgroundColor3","Item"); RegCor(btnMin,"TextColor3","Sub")
 
+	-- ✦ MODIFICAÇÃO: botão fechar com X unicode limpo
 	local btnX = Instance.new("TextButton")
 	btnX.Size=UDim2.new(0,BW,0,BH); btnX.Position=UDim2.new(1,-(BW+8),0.5,-BH/2)
-	btnX.Text="✕"; btnX.Font=Enum.Font.GothamBold; btnX.TextSize=13
+	btnX.Text="✕"; btnX.Font=Enum.Font.GothamBold; btnX.TextSize=14
 	btnX.TextColor3=Color3.new(1,1,1); btnX.BackgroundColor3=C.Perigo
 	btnX.AutoButtonColor=false; btnX.ZIndex=12; btnX.Parent=topbar
 	Cantos(btnX,99); RegCor(btnX,"BackgroundColor3","Perigo")
 
 	btnMin.MouseEnter:Connect(function() Tw(btnMin,0.15,{BackgroundColor3=C.ItemHover,TextColor3=C.Texto}):Play() end)
 	btnMin.MouseLeave:Connect(function() Tw(btnMin,0.15,{BackgroundColor3=C.Item,TextColor3=C.Sub}):Play() end)
-	btnX.MouseEnter:Connect(function() Tw(btnX,0.15,{BackgroundColor3=Color3.fromRGB(255,80,80)}):Play() end)
-	btnX.MouseLeave:Connect(function() Tw(btnX,0.15,{BackgroundColor3=C.Perigo}):Play() end)
+	btnX.MouseEnter:Connect(function() Tw(btnX,0.15,{BackgroundColor3=Color3.fromRGB(255,80,80),Size=UDim2.new(0,BW+3,0,BH+3)}):Play() end)
+	btnX.MouseLeave:Connect(function() Tw(btnX,0.15,{BackgroundColor3=C.Perigo,Size=UDim2.new(0,BW,0,BH)}):Play() end)
+	btnX.MouseButton1Down:Connect(function() Tw(btnX,0.07,{Size=UDim2.new(0,BW-3,0,BH-3)}):Play() end)
+	btnX.MouseButton1Up:Connect(function() Tw(btnX,0.1,{Size=UDim2.new(0,BW,0,BH)}):Play() end)
 
 	local corpo = F({Size=UDim2.new(1,0,1,-TOPBAR_H),Position=UDim2.new(0,0,0,TOPBAR_H),
 		BackgroundTransparency=1,Parent=janela})
@@ -381,7 +383,7 @@ function Hub.novo(nome, tema, velocidade)
 
 	local NOTIF_TIPOS = {
 		sucesso={icone="✓",cor=Color3.fromRGB(48,205,125)},
-		erro   ={icone="X",cor=Color3.fromRGB(215,58,58)},
+		erro   ={icone="✕",cor=Color3.fromRGB(215,58,58)},
 		aviso  ={icone="!",cor=Color3.fromRGB(255,178,35)},
 		info   ={icone="i",cor=Color3.fromRGB(65,155,255)},
 	}
@@ -531,7 +533,7 @@ function Hub.novo(nome, tema, velocidade)
 
 		local IH    = IS_MOBILE and 48 or 46
 		local BTN_H = IS_MOBILE and 42 or 40
-		local SLH   = IS_MOBILE and 64 or 62
+		local SLH   = IS_MOBILE and 72 or 68
 
 		local Aba = {}
 		local ord = 0
@@ -539,7 +541,7 @@ function Hub.novo(nome, tema, velocidade)
 		local function RC(obj,prop,key) RegCor(obj,prop,key) end
 
 		-- ╔══════════════════════════════════════════════════════════╗
-		-- ║  CriarColorPicker — HSV corrigido                       ║
+		-- ║  CriarColorPicker                                       ║
 		-- ╚══════════════════════════════════════════════════════════╝
 		function Aba:CriarColorPicker(texto, padraoColor3, callback)
 			local corAtual = padraoColor3 or Color3.fromRGB(255,255,255)
@@ -806,63 +808,171 @@ function Hub.novo(nome, tema, velocidade)
 			return obj
 		end
 
-		function Aba:CriarSlider(texto, minV, maxV, padrao, callback)
-			local val=padrao or minV
-			local fr=F({Size=UDim2.new(1,-6,0,SLH),BackgroundColor3=C.Cartao,LayoutOrder=PO(),Parent=pagina})
+		-- ╔══════════════════════════════════════════════════════════╗
+		-- ║  CriarSlider v2                                         ║
+		-- ║  CriarSlider(texto, min, max, padrao, callback, config) ║
+		-- ║  config = {                                             ║
+		-- ║    step    = 1,      -- incremento (ex: 0.1, 5, 10)    ║
+		-- ║    float   = false,  -- mostrar casas decimais          ║
+		-- ║    decimais= 1,      -- quantas casas decimais          ║
+		-- ║    unidade = "",     -- sufixo ex: "ms", "x", "%"       ║
+		-- ║  }                                                      ║
+		-- ╚══════════════════════════════════════════════════════════╝
+		function Aba:CriarSlider(texto, minV, maxV, padrao, callback, config)
+			config = config or {}
+			local step     = config.step     or 1
+			local useFloat = config.float    or false
+			local decimais = config.decimais or 1
+			local unidade  = config.unidade  or ""
+
+			local function Arredondar(v)
+				if useFloat then
+					local fator = 10^decimais
+					return math.floor(v/step + 0.5)*step
+					-- snap ao step mas mantém float
+				else
+					return math.floor(v/step + 0.5)*step
+				end
+			end
+			local function Formatar(v)
+				v = math.clamp(v, minV, maxV)
+				if useFloat then
+					return string.format("%."..decimais.."f", v)..unidade
+				else
+					return tostring(math.floor(v))..unidade
+				end
+			end
+
+			local val = Arredondar(math.clamp(padrao or minV, minV, maxV))
+
+			local fr=F({Size=UDim2.new(1,-6,0,SLH), BackgroundColor3=C.Cartao, LayoutOrder=PO(), Parent=pagina})
 			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
-			L({Size=UDim2.new(0.62,0,0,22),Position=UDim2.new(0,14,0,IS_MOBILE and 8 or 7),Text=texto,TextColor3=C.Texto,Font=Enum.Font.Gotham,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,Parent=fr})
-			local lblV=L({Size=UDim2.new(0.35,0,0,22),Position=UDim2.new(0.64,-4,0,IS_MOBILE and 8 or 7),Text=tostring(val),TextColor3=C.Destaque,Font=Enum.Font.GothamBold,TextSize=13,TextXAlignment=Enum.TextXAlignment.Right,Parent=fr})
+
+			-- labels de label + valor
+			local labelY = IS_MOBILE and 10 or 9
+			L({Size=UDim2.new(0.58,0,0,20), Position=UDim2.new(0,14,0,labelY),
+				Text=texto, TextColor3=C.Texto, Font=Enum.Font.Gotham, TextSize=13,
+				TextXAlignment=Enum.TextXAlignment.Left, Parent=fr})
+
+			local lblV = L({Size=UDim2.new(0.38,0,0,20), Position=UDim2.new(0.6,-4,0,labelY),
+				Text=Formatar(val), TextColor3=C.Destaque, Font=Enum.Font.GothamBold,
+				TextSize=13, TextXAlignment=Enum.TextXAlignment.Right, Parent=fr})
 			RC(lblV,"TextColor3","Destaque")
-			local trilhaY=IS_MOBILE and 44 or 42
-			local trilha=F({Size=UDim2.new(1,-28,0,6),Position=UDim2.new(0,14,0,trilhaY),BackgroundColor3=C.Item,Parent=fr})
+
+			-- min/max hints
+			local hintY = IS_MOBILE and 30 or 28
+			L({Size=UDim2.new(0,30,0,12), Position=UDim2.new(0,14,0,hintY),
+				Text=Formatar(minV), TextColor3=C.Fraco, Font=Enum.Font.Gotham, TextSize=9,
+				TextXAlignment=Enum.TextXAlignment.Left, Parent=fr})
+			L({Size=UDim2.new(0,30,0,12), Position=UDim2.new(1,-44,0,hintY),
+				Text=Formatar(maxV), TextColor3=C.Fraco, Font=Enum.Font.Gotham, TextSize=9,
+				TextXAlignment=Enum.TextXAlignment.Right, Parent=fr})
+
+			-- trilha
+			local trilhaY = IS_MOBILE and 50 or 47
+			local trilha=F({Size=UDim2.new(1,-28,0,6), Position=UDim2.new(0,14,0,trilhaY),
+				BackgroundColor3=C.Item, Parent=fr})
 			RC(trilha,"BackgroundColor3","Item"); Cantos(trilha,99)
-			local fill=F({Size=UDim2.new((val-minV)/(maxV-minV),0,1,0),BackgroundColor3=C.Destaque,Parent=trilha})
+
+			-- fill com gradiente
+			local pct = (val-minV)/(maxV-minV)
+			local fill=F({Size=UDim2.new(pct,0,1,0), BackgroundColor3=C.Destaque, Parent=trilha})
 			Cantos(fill,99); RC(fill,"BackgroundColor3","Destaque")
 			local fillGrad=Grad(fill,C.DestaqueV,C.Destaque,0); RegGrad(fillGrad,"DestaqueV","Destaque",0)
 			if isRainbow then AddRainbow(fill,"BackgroundColor3",0.12) end
-			local BOLA=IS_MOBILE and 20 or 17
-			local bola=F({Size=UDim2.new(0,BOLA,0,BOLA),Position=UDim2.new((val-minV)/(maxV-minV),0,0.5,0),AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=Color3.new(1,1,1),ZIndex=3,Parent=trilha})
+
+			-- bola
+			local BOLA = IS_MOBILE and 20 or 17
+			local bola=F({Size=UDim2.new(0,BOLA,0,BOLA), Position=UDim2.new(pct,0,0.5,0),
+				AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=Color3.new(1,1,1), ZIndex=3, Parent=trilha})
 			Cantos(bola,99)
 			local bolaBrd=Stroke(bola,C.Destaque,2,0.25); RC(bolaBrd,"Color","Destaque")
-			local hitbox=F({Size=UDim2.new(1,0,0,IS_MOBILE and 36 or 28),Position=UDim2.new(0,0,0.5,-(IS_MOBILE and 18 or 14)),BackgroundTransparency=1,ZIndex=5,Parent=trilha})
+
+			-- tooltip acima da bola
+			local tooltip = F({Size=UDim2.new(0,44,0,20), AnchorPoint=Vector2.new(0.5,1),
+				Position=UDim2.new(pct,0,0,-6), BackgroundColor3=C.Destaque,
+				ZIndex=6, Visible=false, Parent=trilha})
+			Cantos(tooltip,5)
+			local tooltipLbl = L({Size=UDim2.new(1,0,1,0), Text=Formatar(val),
+				TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold,
+				TextSize=10, ZIndex=7, Parent=tooltip})
+
+			-- hitbox
+			local hitbox=F({Size=UDim2.new(1,0,0,IS_MOBILE and 36 or 28),
+				Position=UDim2.new(0,0,0.5,-(IS_MOBILE and 18 or 14)),
+				BackgroundTransparency=1, ZIndex=5, Parent=trilha})
+
 			local ativo=false
 			local function Upd(px)
-				local p=math.clamp((px-trilha.AbsolutePosition.X)/trilha.AbsoluteSize.X,0,1)
-				val=math.floor(minV+(maxV-minV)*p); fill.Size=UDim2.new(p,0,1,0); bola.Position=UDim2.new(p,0,0.5,0); lblV.Text=tostring(val)
-				if callback then callback(val) end
+				local p = math.clamp((px - trilha.AbsolutePosition.X) / trilha.AbsoluteSize.X, 0, 1)
+				val = Arredondar(minV + (maxV - minV) * p)
+				val = math.clamp(val, minV, maxV)
+				local p2 = (val - minV) / (maxV - minV)
+				fill.Size = UDim2.new(p2,0,1,0)
+				bola.Position = UDim2.new(p2,0,0.5,0)
+				tooltip.Position = UDim2.new(p2,0,0,-6)
+				lblV.Text = Formatar(val)
+				tooltipLbl.Text = Formatar(val)
+				if callback then callback(useFloat and val or math.floor(val)) end
 			end
+
 			hitbox.InputBegan:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then ativo=true; Upd(i.Position.X); Tw(bola,0.1,{Size=UDim2.new(0,BOLA+5,0,BOLA+5)}):Play() end
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					ativo=true; Upd(i.Position.X)
+					Tw(bola,0.1,{Size=UDim2.new(0,BOLA+5,0,BOLA+5)}):Play()
+					tooltip.Visible=true
+				end
 			end)
-			table.insert(hubSelf._conexoes,EntradaUsuario.InputChanged:Connect(function(i)
+			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
 				if not ativo then return end
-				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then Upd(i.Position.X) end
+				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
+					Upd(i.Position.X)
+				end
 			end))
-			table.insert(hubSelf._conexoes,EntradaUsuario.InputEnded:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then if ativo then ativo=false; Tw(bola,0.1,{Size=UDim2.new(0,BOLA,0,BOLA)}):Play() end end
+			table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					if ativo then
+						ativo=false
+						Tw(bola,0.1,{Size=UDim2.new(0,BOLA,0,BOLA)}):Play()
+						tooltip.Visible=false
+					end
+				end
 			end))
+
+			fr.MouseEnter:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end)
+			fr.MouseLeave:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end)
+
 			local obj={}
-			function obj:Definir(v) val=math.clamp(v,minV,maxV); local p=(val-minV)/(maxV-minV); fill.Size=UDim2.new(p,0,1,0); bola.Position=UDim2.new(p,0,0.5,0); lblV.Text=tostring(val) end
-			function obj:Obter() return val end
+			function obj:Definir(v)
+				val=Arredondar(math.clamp(v,minV,maxV))
+				local p2=(val-minV)/(maxV-minV)
+				fill.Size=UDim2.new(p2,0,1,0); bola.Position=UDim2.new(p2,0,0.5,0)
+				lblV.Text=Formatar(val)
+			end
+			function obj:Obter() return useFloat and val or math.floor(val) end
 			obj.Set=obj.Definir; obj.Get=obj.Obter
 			return obj
 		end
 
 		-- ╔══════════════════════════════════════════════════════════╗
-		-- ║  CriarDropdown v2.0                                     ║
-		-- ║  config = {                                             ║
-		-- ║    multi       = false,   -- seleção múltipla           ║
-		-- ║    search      = true,    -- campo de busca             ║
-		-- ║    maxVisible  = 5,       -- itens antes de rolar       ║
-		-- ║    placeholder = "...",   -- texto sem seleção          ║
-		-- ║  }                                                      ║
+		-- ║  CriarDropdown v3.0 — parâmetros diretos                ║
+		-- ║  CriarDropdown(texto, opcoes, callback,                 ║
+		-- ║    multi, search, maxVisible, placeholder)              ║
 		-- ╚══════════════════════════════════════════════════════════╝
-		function Aba:CriarDropdown(texto, opcoes, callback, config)
-			config = config or {}
-			local multiSelect = config.multi      or false
-			local placeholder = config.placeholder or opcoes[1] or "-"
-			local maxVisible  = config.maxVisible  or 5
-			local useSearch   = config.search ~= false
+		function Aba:CriarDropdown(texto, opcoes, callback, multi, search, maxVisible, placeholder)
+			-- compatibilidade: se 4º arg for tabela, lê como config antiga
+			if type(multi) == "table" then
+				local cfg = multi
+				multi       = cfg.multi
+				search      = cfg.search
+				maxVisible  = cfg.maxVisible
+				placeholder = cfg.placeholder
+			end
+
+			local multiSelect = multi      or false
+			local useSearch   = search ~= false
+			local maxVis      = maxVisible  or 5
+			local placeholderTxt = placeholder or opcoes[1] or "-"
 
 			local aberto    = false
 			local IHd       = IS_MOBILE and 38 or 34
@@ -871,14 +981,14 @@ function Hub.novo(nome, tema, velocidade)
 			local PAD       = 8
 			local SEARCH_H  = useSearch and (IS_MOBILE and 36 or 32) or 0
 
-			local selSimples = opcoes[1] or placeholder
+			local selSimples = opcoes[1] or placeholderTxt
 			local selMulti   = {}
 
 			local function GetLabel()
 				if multiSelect then
 					local t={}
 					for _,op in ipairs(opcoes) do if selMulti[op] then table.insert(t,op) end end
-					return #t==0 and placeholder or table.concat(t,", ")
+					return #t==0 and placeholderTxt or table.concat(t,", ")
 				else
 					return selSimples
 				end
@@ -913,7 +1023,6 @@ function Hub.novo(nome, tema, velocidade)
 				TextSize=16, Rotation=90, Parent=cab})
 			RC(seta,"TextColor3","Fraco")
 
-			-- campo de busca
 			local searchBox = nil
 			if useSearch then
 				local sfr = F({Size=UDim2.new(1,-16,0,SEARCH_H-4), Position=UDim2.new(0,8,0,FH+4),
@@ -935,7 +1044,6 @@ function Hub.novo(nome, tema, velocidade)
 				searchBox.FocusLost:Connect(function() Tw(sbrd,0.15,{Color=C.Borda,Transparency=0.4}):Play() end)
 			end
 
-			-- lista com scroll
 			local listaHolder = Instance.new("ScrollingFrame")
 			listaHolder.BackgroundTransparency=1; listaHolder.BorderSizePixel=0
 			listaHolder.ScrollBarThickness=IS_MOBILE and 0 or 3
@@ -956,7 +1064,7 @@ function Hub.novo(nome, tema, velocidade)
 			end
 
 			local function CalcAltura(visCount)
-				return FH + SEARCH_H + math.min(visCount, maxVisible) * (IHd + GAP) + PAD * 2
+				return FH + SEARCH_H + math.min(visCount, maxVis) * (IHd + GAP) + PAD * 2
 			end
 
 			local function ConstruirItens(filtro)
@@ -1032,7 +1140,7 @@ function Hub.novo(nome, tema, velocidade)
 					L({Size=UDim2.new(1,0,1,0),Text="Nenhum resultado",TextColor3=C.Fraco,Font=Enum.Font.Gotham,TextSize=12,ZIndex=3,Parent=empty})
 				end
 
-				local altLista = math.min(visiveis>0 and visiveis or 1, maxVisible) * (IHd+GAP) + PAD*2
+				local altLista = math.min(visiveis>0 and visiveis or 1, maxVis) * (IHd+GAP) + PAD*2
 				listaHolder.Size=UDim2.new(1,0,0,altLista)
 				listaHolder.Position=UDim2.new(0,0,0,FH+SEARCH_H)
 				listaHolder.CanvasSize=UDim2.new(0,0,0,lyL.AbsoluteContentSize.Y+8)
@@ -1069,7 +1177,6 @@ function Hub.novo(nome, tema, velocidade)
 				if aberto then FecharDropdown() else AbrirDropdown() end
 			end)
 
-			-- fechar ao clicar fora
 			table.insert(hubSelf._conexoes, EntradaUsuario.InputBegan:Connect(function(input)
 				if not aberto then return end
 				if input.UserInputType==Enum.UserInputType.MouseButton1
@@ -1104,13 +1211,13 @@ function Hub.novo(nome, tema, velocidade)
 				if not multiSelect then
 					local existe=false
 					for _,n in ipairs(novasOps) do if n==selSimples then existe=true; break end end
-					if not existe then selSimples=novasOps[1] or placeholder; lblS.Text=selSimples end
+					if not existe then selSimples=novasOps[1] or placeholderTxt; lblS.Text=selSimples end
 				end
 				FecharDropdown()
 				task.delay(0.22, function() ConstruirItens("") end)
 			end
 			function obj:LimparSelecao()
-				if multiSelect then selMulti={}; AtualizarBadge() else selSimples=placeholder end
+				if multiSelect then selMulti={}; AtualizarBadge() else selSimples=placeholderTxt end
 				lblS.Text=GetLabel(); ConstruirItens("")
 			end
 			function obj:Fechar() FecharDropdown() end
@@ -1216,10 +1323,9 @@ function Hub.novo(nome, tema, velocidade)
 
 	function self:CriarDropdownTemas(aba)
 		return aba:CriarDropdown(
-			"Tema",
-			Hub.Temas,
+			"Tema", Hub.Temas,
 			function(novoTema) self:MudarTemaPara(novoTema) end,
-			{ search=true, maxVisible=5, placeholder="Escolher tema..." }
+			false, true, 5, "Escolher tema..."
 		)
 	end
 
