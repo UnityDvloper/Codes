@@ -1200,15 +1200,17 @@ function Hub.novo(nome, tema, velocidade)
 			fr.MouseLeave:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end)
 
 			-- .valor atualiza automaticamente sempre que a seleção muda
-			-- simples  → string         ex: drop.valor == "Maçã"
-			-- multi    → tabela/array   ex: drop.valor == {"Voar", "ESP"}
+			-- simples → string        ex: drop.valor == "Maçã"
+			-- multi   → tabela/array  ex: drop.valor == {"Voar", "ESP"}
 			local obj = {}
 			obj.valor = multiSelect and {} or selSimples
 
+			-- SyncValor é chamada diretamente nos cliques (via _syncValorRef)
+			-- e nos métodos abaixo — sem patch em ConstruirItens
 			local function SyncValor()
 				if multiSelect then
-					local t={}
-					for _,op in ipairs(opcoes) do if selMulti[op] then table.insert(t,op) end end
+					local t = {}
+					for _, op in ipairs(opcoes) do if selMulti[op] then table.insert(t, op) end end
 					obj.valor = t
 				else
 					obj.valor = selSimples
@@ -1217,44 +1219,34 @@ function Hub.novo(nome, tema, velocidade)
 			SyncValor()
 			_syncValorRef.fn = SyncValor
 
-			-- patch: toda vez que selSimples ou selMulti mudar, SyncValor é chamado
-			-- fazemos isso envolvendo as funções que modificam a seleção
-			local _origConstruir = ConstruirItens
-			ConstruirItens = function(filtro)
-				local r = _origConstruir(filtro)
-				SyncValor()
-				return r
-			end
-
 			function obj:Definir(v)
 				if multiSelect then
-					selMulti={}
-					if type(v)=="table" then for _,k in ipairs(v) do selMulti[k]=true end else selMulti[v]=true end
-				else selSimples=v end
-				lblS.Text=GetLabel(); AtualizarBadge(); ConstruirItens("")
-				SyncValor()
+					selMulti = {}
+					if type(v) == "table" then for _,k in ipairs(v) do selMulti[k]=true end else selMulti[v]=true end
+				else selSimples = v end
+				lblS.Text = GetLabel(); AtualizarBadge(); ConstruirItens(""); SyncValor()
 			end
 			function obj:Obter()
 				if multiSelect then local t={}; for op in pairs(selMulti) do table.insert(t,op) end; return t
 				else return selSimples end
 			end
 			function obj:AtualizarOpcoes(novasOps)
-				opcoes=novasOps
+				opcoes = novasOps
 				if not multiSelect then
-					local existe=false
-					for _,n in ipairs(novasOps) do if n==selSimples then existe=true; break end end
-					if not existe then selSimples=novasOps[1] or placeholderTxt; lblS.Text=selSimples end
+					local existe = false
+					for _, n in ipairs(novasOps) do if n == selSimples then existe = true; break end end
+					if not existe then selSimples = novasOps[1] or placeholderTxt; lblS.Text = selSimples end
 				end
 				FecharDropdown()
 				task.delay(0.22, function() ConstruirItens(""); SyncValor() end)
 			end
 			function obj:LimparSelecao()
-				if multiSelect then selMulti={}; AtualizarBadge() else selSimples=placeholderTxt end
-				lblS.Text=GetLabel(); ConstruirItens(""); SyncValor()
+				if multiSelect then selMulti = {}; AtualizarBadge() else selSimples = placeholderTxt end
+				lblS.Text = GetLabel(); ConstruirItens(""); SyncValor()
 			end
 			function obj:Fechar() FecharDropdown() end
-			obj.Set=obj.Definir; obj.Get=obj.Obter
-			obj.UpdateOptions=obj.AtualizarOpcoes; obj.Clear=obj.LimparSelecao
+			obj.Set = obj.Definir; obj.Get = obj.Obter
+			obj.UpdateOptions = obj.AtualizarOpcoes; obj.Clear = obj.LimparSelecao
 			return obj
 		end
 
