@@ -977,96 +977,353 @@ function Hub.novo(nome, tema, velocidade)
 		end
 
 		-- ╔══════════════════════════════════════════════════════════╗
-		-- ║  CriarDropdown — com :AtualizarOpcoes(novaLista)        ║
-		-- ╚══════════════════════════════════════════════════════════╝
-		function Aba:CriarDropdown(texto, opcoes, callback)
-			local aberto = false
-			local sel    = opcoes[1] or "-"
-			local IHd    = IS_MOBILE and 38 or 34
-			local FH     = IS_MOBILE and 44 or 44
+-- ║  CriarDropdown v2.0 — Melhorias                         ║
+-- ║  • Busca/filtro em tempo real                           ║
+-- ║  • Scroll suave com ScrollingFrame                      ║
+-- ║  • Seleção múltipla opcional                            ║
+-- ║  • Ícone de check no item selecionado                   ║
+-- ║  • Fechar ao clicar fora                                ║
+-- ║  • Animação de abertura com easing                      ║
+-- ║  • Limite de altura configurável                        ║
+-- ║  • Placeholder quando sem seleção                       ║
+-- ╚══════════════════════════════════════════════════════════╝
+function Aba:CriarDropdown(texto, opcoes, callback, config)
+    config = config or {}
+    local multiSelect   = config.multi       or false
+    local placeholder   = config.placeholder or "Selecionar..."
+    local maxVisible    = config.maxVisible  or 5
+    local searchEnabled = config.search ~= false  -- padrão: true se > 6 itens
 
-			local fr = F({Size=UDim2.new(1,-6,0,FH), BackgroundColor3=C.Cartao,
-				ClipsDescendants=true, LayoutOrder=PO(), Parent=pagina})
-			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
+    local aberto    = false
+    local IHd       = IS_MOBILE and 38 or 34
+    local FH        = IS_MOBILE and 44 or 44
+    local GAP       = 4
+    local PAD       = 8
 
-			local cab = Instance.new("TextButton")
-			cab.Size=UDim2.new(1,0,0,FH); cab.BackgroundTransparency=1
-			cab.Text=""; cab.AutoButtonColor=false; cab.Parent=fr
+    -- estado de seleção
+    local selSimples = opcoes[1] or "-"
+    local selMulti   = {}   -- { [opcao] = true }
 
-			L({Size=UDim2.new(0.5,0,1,0), Position=UDim2.new(0,14,0,0), Text=texto,
-				TextColor3=C.Sub, Font=Enum.Font.Gotham, TextSize=12,
-				TextXAlignment=Enum.TextXAlignment.Left, Parent=cab})
+    local function GetLabel()
+        if multiSelect then
+            local t = {}
+            for _, op in ipairs(opcoes) do if selMulti[op] then table.insert(t, op) end end
+            return #t == 0 and placeholder or table.concat(t, ", ")
+        else
+            return selSimples
+        end
+    end
 
-			local lblS = L({Size=UDim2.new(0.42,0,1,0), Position=UDim2.new(0.5,-2,0,0),
-				Text=sel, TextColor3=C.Texto, Font=Enum.Font.GothamBold, TextSize=13,
-				TextXAlignment=Enum.TextXAlignment.Right, Parent=cab})
-			RC(lblS,"TextColor3","Texto")
+    -- ── Container principal ──────────────────────────────────
+    local fr = F({
+        Size=UDim2.new(1,-6,0,FH),
+        BackgroundColor3=C.Cartao,
+        ClipsDescendants=true,
+        LayoutOrder=PO(),
+        Parent=pagina,
+    })
+    Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
 
-			local seta = L({Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-26,0,0),
-				Text="›", TextColor3=C.Fraco, Font=Enum.Font.GothamBold, TextSize=16, Rotation=90, Parent=cab})
-			RC(seta,"TextColor3","Fraco")
+    -- ── Cabeçalho (botão de toggle) ──────────────────────────
+    local cab = Instance.new("TextButton")
+    cab.Size=UDim2.new(1,0,0,FH); cab.BackgroundTransparency=1
+    cab.Text=""; cab.AutoButtonColor=false; cab.Parent=fr
 
-			local lista = F({BackgroundTransparency=1, Parent=fr})
-			Pad(lista,4,4,8,8)
-			local lyL = Instance.new("UIListLayout", lista); lyL.Padding=UDim.new(0,4)
+    L({Size=UDim2.new(0.45,0,1,0), Position=UDim2.new(0,14,0,0), Text=texto,
+        TextColor3=C.Sub, Font=Enum.Font.Gotham, TextSize=12,
+        TextXAlignment=Enum.TextXAlignment.Left, Parent=cab})
 
-			local function ConstruirItens(ops)
-				for _, ch in ipairs(lista:GetChildren()) do
-					if ch:IsA("TextButton") then ch:Destroy() end
-				end
-				local AH = FH + (#ops * (IHd + 4)) + 12
-				lista.Size     = UDim2.new(1,0,0,AH-FH)
-				lista.Position = UDim2.new(0,0,0,FH)
-				for _, op in ipairs(ops) do
-					local it = Instance.new("TextButton")
-					it.Size=UDim2.new(1,0,0,IHd); it.BackgroundColor3=C.Item
-					it.TextColor3=C.Texto; it.Font=Enum.Font.Gotham; it.TextSize=13; it.Text=op
-					it.AutoButtonColor=false; it.Parent=lista; Cantos(it,8)
-					RC(it,"BackgroundColor3","Item"); RC(it,"TextColor3","Texto")
-					it.MouseEnter:Connect(function() Tw(it,0.12,{BackgroundColor3=C.BotaoFundo,TextColor3=C.BotaoTexto}):Play() end)
-					it.MouseLeave:Connect(function() Tw(it,0.12,{BackgroundColor3=C.Item,TextColor3=C.Texto}):Play() end)
-					it.MouseButton1Click:Connect(function()
-						sel=op; lblS.Text=sel; aberto=false
-						Tw(fr,0.18,{Size=UDim2.new(1,-6,0,FH)}):Play()
-						Tw(seta,0.18,{Rotation=90}):Play()
-						if callback then callback(sel) end
-					end)
-				end
-				if aberto then
-					local AHn=FH+(#ops*(IHd+4))+12
-					fr.Size=UDim2.new(1,-6,0,AHn)
-				end
-			end
+    local lblS = L({
+        Size=UDim2.new(0.42,0,1,0), Position=UDim2.new(0.5,-2,0,0),
+        Text=GetLabel(), TextColor3=C.Texto, Font=Enum.Font.GothamBold,
+        TextSize=IS_MOBILE and 11 or 12, TextWrapped=true,
+        TextXAlignment=Enum.TextXAlignment.Right, Parent=cab,
+    })
+    RC(lblS,"TextColor3","Texto")
 
-			ConstruirItens(opcoes)
+    -- badge de contagem para multiSelect
+    local badge = F({
+        Size=UDim2.new(0,18,0,18),
+        Position=UDim2.new(1,-46,0.5,-9),
+        BackgroundColor3=C.Destaque,
+        ZIndex=2, Visible=false, Parent=cab,
+    })
+    Cantos(badge,99); RC(badge,"BackgroundColor3","Destaque")
+    local badgeLbl = L({Size=UDim2.new(1,0,1,0), Text="0",
+        TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold, TextSize=9,
+        ZIndex=3, Parent=badge})
 
-			cab.MouseButton1Click:Connect(function()
-				aberto = not aberto
-				local cnt = 0
-				for _, ch in ipairs(lista:GetChildren()) do if ch:IsA("TextButton") then cnt+=1 end end
-				local AH = FH + (cnt * (IHd + 4)) + 12
-				Tw(fr,0.2,{Size=UDim2.new(1,-6,0,aberto and AH or FH)}):Play()
-				Tw(seta,0.2,{Rotation=aberto and -90 or 90}):Play()
-			end)
-			fr.MouseEnter:Connect(function() if not aberto then Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end end)
-			fr.MouseLeave:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end)
+    local seta = L({
+        Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-26,0,0),
+        Text="›", TextColor3=C.Fraco, Font=Enum.Font.GothamBold,
+        TextSize=16, Rotation=90, Parent=cab,
+    })
+    RC(seta,"TextColor3","Fraco")
 
-			local obj = {}
-			function obj:Definir(v) sel=v; lblS.Text=v end
-			function obj:Obter() return sel end
-			function obj:AtualizarOpcoes(novasOps)
-				local aindaExiste=false
-				for _,n in ipairs(novasOps) do if n==sel then aindaExiste=true; break end end
-				if not aindaExiste then sel=novasOps[1] or "-"; lblS.Text=sel end
-				aberto=false
-				Tw(fr,0.1,{Size=UDim2.new(1,-6,0,FH)}):Play()
-				Tw(seta,0.1,{Rotation=90}):Play()
-				task.wait(0.12)
-				ConstruirItens(novasOps)
-			end
-			obj.Set=obj.Definir; obj.Get=obj.Obter; obj.UpdateOptions=obj.AtualizarOpcoes
-			return obj
-		end
+    -- ── Campo de busca (renderizado antes da lista) ──────────
+    local SEARCH_H = (searchEnabled or #opcoes > 6) and (IS_MOBILE and 38 or 34) or 0
+    local searchBox = nil
+
+    if SEARCH_H > 0 then
+        local sfr = F({
+            Size=UDim2.new(1,-16,0,SEARCH_H-6),
+            Position=UDim2.new(0,8,0,FH+4),
+            BackgroundColor3=C.Item,
+            ZIndex=2, Parent=fr,
+        })
+        Cantos(sfr,8); RC(sfr,"BackgroundColor3","Item")
+        local sbrd = Stroke(sfr,C.Borda,1,0.4); RC(sbrd,"Color","Borda")
+
+        -- ícone de lupa
+        L({Size=UDim2.new(0,16,1,0), Position=UDim2.new(0,6,0,0),
+            Text="🔍", TextSize=IS_MOBILE and 11 or 10,
+            Font=Enum.Font.Gotham, ZIndex=3, Parent=sfr})
+
+        searchBox = Instance.new("TextBox")
+        searchBox.Size=UDim2.new(1,-28,1,-8); searchBox.Position=UDim2.new(0,24,0,4)
+        searchBox.BackgroundTransparency=1; searchBox.Text=""
+        searchBox.PlaceholderText="Buscar..."; searchBox.PlaceholderColor3=C.Fraco
+        searchBox.TextColor3=C.Texto; searchBox.Font=Enum.Font.Gotham
+        searchBox.TextSize=IS_MOBILE and 12 or 11
+        searchBox.TextXAlignment=Enum.TextXAlignment.Left
+        searchBox.ClearTextOnFocus=false; searchBox.ZIndex=3; searchBox.Parent=sfr
+        RC(searchBox,"TextColor3","Texto"); RC(searchBox,"PlaceholderColor3","Fraco")
+
+        searchBox.Focused:Connect(function() Tw(sbrd,0.15,{Color=C.Destaque,Transparency=0}):Play() end)
+        searchBox.FocusLost:Connect(function() Tw(sbrd,0.15,{Color=C.Borda,Transparency=0.4}):Play() end)
+    end
+
+    -- ── Lista com scroll ─────────────────────────────────────
+    local listaHolder = Instance.new("ScrollingFrame")
+    listaHolder.BackgroundTransparency=1; listaHolder.BorderSizePixel=0
+    listaHolder.ScrollBarThickness=IS_MOBILE and 0 or 3
+    listaHolder.ScrollBarImageColor3=C.Destaque
+    listaHolder.ScrollingDirection=Enum.ScrollingDirection.Y
+    listaHolder.ZIndex=2; listaHolder.Parent=fr
+    Pad(listaHolder,4,4,8,8)
+
+    local lyL = Instance.new("UIListLayout", listaHolder)
+    lyL.Padding=UDim.new(0,4); lyL.SortOrder=Enum.SortOrder.LayoutOrder
+
+    -- ── Função de cálculo de altura ──────────────────────────
+    local function CalcAltura(visCount)
+        return FH + SEARCH_H + math.min(visCount, maxVisible) * (IHd + GAP) + PAD*2
+    end
+
+    -- ── Construção dos itens ─────────────────────────────────
+    local todosItens = {}   -- { btn, op, checkIco }
+
+    local function AtualizarBadge()
+        if not multiSelect then return end
+        local cnt = 0
+        for _, op in ipairs(opcoes) do if selMulti[op] then cnt+=1 end end
+        badge.Visible = cnt > 0
+        badgeLbl.Text = tostring(cnt)
+    end
+
+    local function ConstruirItens(ops, filtro)
+        for _, ch in ipairs(listaHolder:GetChildren()) do
+            if ch:IsA("TextButton") or ch:IsA("Frame") then ch:Destroy() end
+        end
+        todosItens = {}
+        local visiveis = 0
+        for _, op in ipairs(ops) do
+            if not filtro or filtro=="" or string.find(string.lower(op), string.lower(filtro), 1, true) then
+                visiveis += 1
+                local ativo = multiSelect and selMulti[op] or (not multiSelect and op==selSimples)
+
+                local it = Instance.new("TextButton")
+                it.Size=UDim2.new(1,0,0,IHd)
+                it.BackgroundColor3=ativo and C.BotaoFundo or C.Item
+                it.TextColor3=ativo and C.BotaoTexto or C.Texto
+                it.Font=ativo and Enum.Font.GothamBold or Enum.Font.Gotham
+                it.TextSize=IS_MOBILE and 12 or 13; it.Text=""
+                it.AutoButtonColor=false; it.ZIndex=3; it.Parent=listaHolder
+                Cantos(it,8); RC(it,"BackgroundColor3","Item"); RC(it,"TextColor3","Texto")
+                if ativo then it.BackgroundColor3=C.BotaoFundo; it.TextColor3=C.BotaoTexto end
+
+                -- texto do item
+                L({
+                    Size=UDim2.new(1,-36,1,0), Position=UDim2.new(0,12,0,0),
+                    Text=op, TextColor3=it.TextColor3, Font=it.Font,
+                    TextSize=it.TextSize, TextXAlignment=Enum.TextXAlignment.Left,
+                    ZIndex=4, Parent=it,
+                })
+
+                -- ícone de check
+                local chk = L({
+                    Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-26,0,0),
+                    Text="✓", TextColor3=C.Sucesso, Font=Enum.Font.GothamBold,
+                    TextSize=14, ZIndex=4, Visible=ativo, Parent=it,
+                })
+
+                table.insert(todosItens, {btn=it, op=op, chk=chk})
+
+                it.MouseEnter:Connect(function()
+                    local isAtivo = multiSelect and selMulti[op] or (not multiSelect and op==selSimples)
+                    if not isAtivo then
+                        Tw(it,0.1,{BackgroundColor3=C.ItemHover}):Play()
+                    end
+                end)
+                it.MouseLeave:Connect(function()
+                    local isAtivo = multiSelect and selMulti[op] or (not multiSelect and op==selSimples)
+                    it.BackgroundColor3 = isAtivo and C.BotaoFundo or C.Item
+                end)
+
+                it.MouseButton1Click:Connect(function()
+                    if multiSelect then
+                        selMulti[op] = not selMulti[op]
+                        local isNowAtivo = selMulti[op]
+                        Tw(it,0.12,{BackgroundColor3=isNowAtivo and C.BotaoFundo or C.Item}):Play()
+                        it.TextColor3  = isNowAtivo and C.BotaoTexto or C.Texto
+                        it.Font        = isNowAtivo and Enum.Font.GothamBold or Enum.Font.Gotham
+                        chk.Visible    = isNowAtivo
+                        AtualizarBadge()
+                        lblS.Text = GetLabel()
+                        if callback then callback(GetLabel(), selMulti) end
+                    else
+                        selSimples=op; lblS.Text=op; aberto=false
+                        Tw(fr,0.18,{Size=UDim2.new(1,-6,0,FH)}):Play()
+                        Tw(seta,0.18,{Rotation=90}):Play()
+                        if searchBox then searchBox.Text="" end
+                        -- recolore todos
+                        for _, entry in ipairs(todosItens) do
+                            local sel = entry.op==op
+                            entry.btn.BackgroundColor3 = sel and C.BotaoFundo or C.Item
+                            entry.btn.TextColor3       = sel and C.BotaoTexto or C.Texto
+                            entry.chk.Visible          = sel
+                        end
+                        if callback then callback(sel) end
+                    end
+                end)
+            end
+        end
+
+        -- "Nenhum resultado"
+        if visiveis == 0 then
+            local empty = F({Size=UDim2.new(1,0,0,IHd), BackgroundTransparency=1, Parent=listaHolder})
+            L({Size=UDim2.new(1,0,1,0), Text="Nenhum resultado",
+                TextColor3=C.Fraco, Font=Enum.Font.Gotham, TextSize=12, Parent=empty})
+        end
+
+        -- atualiza canvas e posição
+        local altLista = math.min(visiveis, maxVisible) * (IHd + GAP) + PAD*2
+        listaHolder.Size     = UDim2.new(1,0,0,altLista)
+        listaHolder.Position = UDim2.new(0,0,0,FH + SEARCH_H)
+        listaHolder.CanvasSize = UDim2.new(0,0,0,lyL.AbsoluteContentSize.Y + 8)
+
+        return visiveis
+    end
+
+    -- build inicial
+    ConstruirItens(opcoes, "")
+
+    -- busca em tempo real
+    if searchBox then
+        searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+            ConstruirItens(opcoes, searchBox.Text)
+            if aberto then
+                local cnt = 0
+                for _, ch in ipairs(listaHolder:GetChildren()) do
+                    if ch:IsA("TextButton") then cnt+=1 end
+                end
+                local AH = CalcAltura(cnt)
+                Tw(fr,0.12,{Size=UDim2.new(1,-6,0,AH)}):Play()
+            end
+        end)
+    end
+
+    -- ── Toggle abrir/fechar ──────────────────────────────────
+    local function Fechar()
+        aberto = false
+        Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
+        Tw(seta,0.2,{Rotation=90}):Play()
+        if searchBox then
+            Tw(fr,0.05,{}):Play()   -- força reflow
+            task.delay(0.12, function() if searchBox and searchBox.Parent then searchBox.Text="" end end)
+        end
+    end
+    local function Abrir()
+        aberto = true
+        local cnt = 0
+        for _, ch in ipairs(listaHolder:GetChildren()) do
+            if ch:IsA("TextButton") then cnt+=1 end
+        end
+        local AH = CalcAltura(cnt)
+        Tw(fr,0.25,{Size=UDim2.new(1,-6,0,AH)},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
+        Tw(seta,0.2,{Rotation=-90}):Play()
+    end
+
+    cab.MouseButton1Click:Connect(function()
+        if aberto then Fechar() else Abrir() end
+    end)
+
+    -- fechar ao clicar fora (via UserInputService)
+    table.insert(hubSelf._conexoes, EntradaUsuario.InputBegan:Connect(function(input)
+        if not aberto then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            -- pequeno delay para não conflitar com o próprio cab.Click
+            task.delay(0.05, function()
+                if aberto then
+                    local mp = EntradaUsuario:GetMouseLocation()
+                    local ap = fr.AbsolutePosition; local as = fr.AbsoluteSize
+                    local dentro = mp.X >= ap.X and mp.X <= ap.X+as.X
+                               and mp.Y >= ap.Y and mp.Y <= ap.Y+as.Y
+                    if not dentro then Fechar() end
+                end
+            end)
+        end
+    end))
+
+    fr.MouseEnter:Connect(function() if not aberto then Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end end)
+    fr.MouseLeave:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end)
+
+    -- ── API pública ──────────────────────────────────────────
+    local obj = {}
+
+    function obj:Definir(v)
+        if multiSelect then
+            selMulti = {}
+            if type(v) == "table" then for _, k in ipairs(v) do selMulti[k]=true end
+            else selMulti[v]=true end
+        else
+            selSimples=v
+        end
+        lblS.Text=GetLabel(); AtualizarBadge()
+        ConstruirItens(opcoes, "")
+    end
+
+    function obj:Obter()
+        if multiSelect then
+            local t={}; for op,_ in pairs(selMulti) do table.insert(t,op) end; return t
+        else return selSimples end
+    end
+
+    function obj:AtualizarOpcoes(novasOps)
+        opcoes = novasOps
+        if not multiSelect then
+            local existe=false
+            for _,n in ipairs(novasOps) do if n==selSimples then existe=true; break end end
+            if not existe then selSimples=novasOps[1] or "-"; lblS.Text=selSimples end
+        end
+        Fechar()
+        task.delay(0.22, function() ConstruirItens(novasOps, "") end)
+    end
+
+    function obj:LimparSelecao()
+        if multiSelect then selMulti={}; AtualizarBadge()
+        else selSimples=placeholder end
+        lblS.Text=GetLabel(); ConstruirItens(opcoes,"")
+    end
+
+    function obj:Fechar() Fechar() end
+
+    obj.Set=obj.Definir; obj.Get=obj.Obter
+    obj.UpdateOptions=obj.AtualizarOpcoes
+    obj.Clear=obj.LimparSelecao
+    return obj
+end
 
 		function Aba:CriarTexto(textoInicial, cor)
 			local corTexto=cor or C.Sub
