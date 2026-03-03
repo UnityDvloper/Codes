@@ -382,60 +382,186 @@ function Hub.novo(nome, tema, velocidade)
 		self:Notificar("Tema","Tema alterado para "..novoTema,"info",2.5)
 	end
 
-	local NOTIF_W = IS_MOBILE and math.min(JANELA_W-24, 240) or 310
+	local NOTIF_W = IS_MOBILE and math.min(JANELA_W-24, 260) or 320
 	local notifHolder = F({
-		Size=UDim2.new(0,NOTIF_W,1,-20), Position=UDim2.new(1,-(NOTIF_W+4),0,10),
+		Size=UDim2.new(0,NOTIF_W,1,-20), Position=UDim2.new(1,-(NOTIF_W+10),0,10),
 		BackgroundTransparency=1, ZIndex=300, Parent=gui,
 	})
-	local notifLayout = Instance.new("UIListLayout",notifHolder)
-	notifLayout.VerticalAlignment=Enum.VerticalAlignment.Bottom
-	notifLayout.HorizontalAlignment=Enum.HorizontalAlignment.Center
-	notifLayout.Padding=UDim.new(0,5)
-	Pad(notifHolder,0,IS_MOBILE and 6 or 8,0,0)
+	local notifLayout = Instance.new("UIListLayout", notifHolder)
+	notifLayout.VerticalAlignment  = Enum.VerticalAlignment.Bottom
+	notifLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	notifLayout.Padding = UDim.new(0, 6)
+	Pad(notifHolder, 0, IS_MOBILE and 6 or 10, 0, 0)
 
 	local NOTIF_TIPOS = {
-		sucesso={icone="✓",cor=Color3.fromRGB(48,205,125)},
-		erro   ={icone="✕",cor=Color3.fromRGB(215,58,58)},
-		aviso  ={icone="!",cor=Color3.fromRGB(255,178,35)},
-		info   ={icone="i",cor=Color3.fromRGB(65,155,255)},
+		sucesso = {icone="✓", cor=Color3.fromRGB(48,205,125),  bg=Color3.fromRGB(20,55,35)},
+		erro    = {icone="✕", cor=Color3.fromRGB(220,65,65),   bg=Color3.fromRGB(55,18,18)},
+		aviso   = {icone="!", cor=Color3.fromRGB(255,185,35),  bg=Color3.fromRGB(55,42,12)},
+		info    = {icone="i", cor=Color3.fromRGB(65,155,255),  bg=Color3.fromRGB(16,38,68)},
 	}
 
 	function self:Notificar(titulo, mensagem, tipo, duracao)
-		tipo=tipo or "info"; duracao=duracao or 3.5
-		local cfg=NOTIF_TIPOS[tipo] or NOTIF_TIPOS.info
-		local icSize=IS_MOBILE and 24 or 28
-		local offsetX=icSize+16
-		local padX=offsetX+8
-		local minH=IS_MOBILE and 50 or 60
-		local card=F({Size=UDim2.new(1,0,0,minH),BackgroundColor3=C.Cartao,ZIndex=301,Parent=notifHolder})
-		Cantos(card,9); Stroke(card,cfg.cor,1,0.5)
-		card.Position=UDim2.new(0,NOTIF_W+10,0,0)
-		local ic=F({Size=UDim2.new(0,icSize,0,icSize),Position=UDim2.new(0,9,0,0),BackgroundColor3=cfg.cor,ZIndex=302,Parent=card})
-		Cantos(ic,99)
-		L({Size=UDim2.new(1,0,1,0),Text=cfg.icone,TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=IS_MOBILE and 11 or 12,ZIndex=303,Parent=ic})
-		local lblTitulo=L({Size=UDim2.new(1,-(padX+8),0,16),Position=UDim2.new(0,offsetX,0,IS_MOBILE and 6 or 8),
-			Text=titulo,TextColor3=C.Texto,Font=Enum.Font.GothamBold,TextSize=IS_MOBILE and 11 or 12,
-			TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,AutomaticSize=Enum.AutomaticSize.Y,ZIndex=302,Parent=card})
-		local lblMsg=L({Size=UDim2.new(1,-(padX+8),0,14),Position=UDim2.new(0,offsetX,0,IS_MOBILE and 22 or 26),
-			Text=mensagem or "",TextColor3=C.Sub,Font=Enum.Font.Gotham,TextSize=IS_MOBILE and 10 or 11,
-			TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,AutomaticSize=Enum.AutomaticSize.Y,ZIndex=302,Parent=card})
-		local base=F({Size=UDim2.new(1,-12,0,2),Position=UDim2.new(0,6,1,-4),BackgroundColor3=C.Fraco,ZIndex=302,Parent=card})
-		Cantos(base,99)
-		local fill=F({Size=UDim2.new(1,0,1,0),BackgroundColor3=cfg.cor,ZIndex=303,Parent=base})
-		Cantos(fill,99)
+		tipo    = tipo    or "info"
+		duracao = duracao or 3.5
+		local cfg    = NOTIF_TIPOS[tipo] or NOTIF_TIPOS.info
+		local icSize = IS_MOBILE and 26 or 30
+		local minH   = IS_MOBILE and 54 or 64
+
+		-- card principal
+		local card = F({
+			Size=UDim2.new(1,0,0,minH),
+			BackgroundColor3=cfg.bg,
+			ClipsDescendants=true,
+			ZIndex=301, Parent=notifHolder,
+		})
+		Cantos(card, 12)
+		-- borda colorida
+		local cardBrd = Stroke(card, cfg.cor, 1, 0.45)
+		-- barra colorida lateral esquerda
+		local lateral = F({
+			Size=UDim2.new(0,4,1,0),
+			BackgroundColor3=cfg.cor,
+			ZIndex=303, Parent=card,
+		})
+		Cantos(lateral, 4)
+		-- gradiente no fundo do card
+		local cardGrad = Instance.new("UIGradient")
+		cardGrad.Color = ColorSequence.new(
+			Color3.fromRGB(255,255,255),
+			Color3.fromRGB(180,180,180)
+		)
+		cardGrad.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.88),
+			NumberSequenceKeypoint.new(1, 0.96),
+		})
+		cardGrad.Rotation = 0
+		cardGrad.Parent   = card
+
+		-- ícone circular
+		local ic = F({
+			Size=UDim2.new(0,icSize,0,icSize),
+			Position=UDim2.new(0,14,0.5,-(icSize/2)),
+			BackgroundColor3=cfg.cor,
+			ZIndex=304, Parent=card,
+		})
+		Cantos(ic, 99)
+		-- brilho no ícone
+		local icGlow = F({
+			Size=UDim2.new(1.6,0,1.6,0),
+			Position=UDim2.new(0.5,0,0.5,0),
+			AnchorPoint=Vector2.new(0.5,0.5),
+			BackgroundColor3=cfg.cor,
+			BackgroundTransparency=0.78,
+			ZIndex=303, Parent=ic,
+		})
+		Cantos(icGlow,99)
+		L({
+			Size=UDim2.new(1,0,1,0),
+			Text=cfg.icone,
+			TextColor3=Color3.new(1,1,1),
+			Font=Enum.Font.GothamBold,
+			TextSize=IS_MOBILE and 12 or 13,
+			ZIndex=305, Parent=ic,
+		})
+
+		local txtX = 14 + icSize + 12
+
+		-- título
+		local lblTitulo = L({
+			Size=UDim2.new(1,-(txtX+10),0,16),
+			Position=UDim2.new(0,txtX,0,0),
+			Text=titulo,
+			TextColor3=Color3.new(1,1,1),
+			Font=Enum.Font.GothamBold,
+			TextSize=IS_MOBILE and 11 or 12,
+			TextXAlignment=Enum.TextXAlignment.Left,
+			TextWrapped=true,
+			AutomaticSize=Enum.AutomaticSize.Y,
+			ZIndex=302, Parent=card,
+		})
+		-- mensagem
+		local lblMsg = L({
+			Size=UDim2.new(1,-(txtX+10),0,14),
+			Position=UDim2.new(0,txtX,0,0),
+			Text=mensagem or "",
+			TextColor3=cfg.cor,
+			Font=Enum.Font.Gotham,
+			TextSize=IS_MOBILE and 10 or 11,
+			TextXAlignment=Enum.TextXAlignment.Left,
+			TextWrapped=true,
+			AutomaticSize=Enum.AutomaticSize.Y,
+			ZIndex=302, Parent=card,
+		})
+
+		-- barra de progresso no fundo
+		local progBg = F({
+			Size=UDim2.new(1,0,0,3),
+			Position=UDim2.new(0,0,1,-3),
+			BackgroundColor3=Color3.fromRGB(0,0,0),
+			BackgroundTransparency=0.6,
+			ZIndex=304, Parent=card,
+		})
+		local prog = F({
+			Size=UDim2.new(1,0,1,0),
+			BackgroundColor3=cfg.cor,
+			ZIndex=305, Parent=progBg,
+		})
+		-- gradiente na barra de progresso
+		local progGrad = Instance.new("UIGradient")
+		progGrad.Color    = ColorSequence.new(cfg.cor, Color3.new(1,1,1))
+		progGrad.Rotation = 0
+		progGrad.Parent   = prog
+
+		-- entra pela direita
+		card.Position = UDim2.new(0, NOTIF_W+20, 0, 0)
+
 		task.defer(function()
-			local altTitulo=lblTitulo.TextBounds.Y; local altMsg=lblMsg.TextBounds.Y
-			local topPad=IS_MOBILE and 6 or 8; local gap=4; local botPad=10
-			local altTotal=math.max(topPad+altTitulo+gap+altMsg+botPad+4,minH)
-			card.Size=UDim2.new(1,0,0,altTotal)
-			ic.Position=UDim2.new(0,9,0,altTotal/2-icSize/2)
-			lblMsg.Position=UDim2.new(0,offsetX,0,topPad+altTitulo+gap)
-			Tw(card,0.3,{Position=UDim2.new(0,0,0,0)},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
+			if not card.Parent then return end
+
+			-- calcular altura real
+			local topPad = IS_MOBILE and 8 or 10
+			local gap    = 3
+			local botPad = IS_MOBILE and 10 or 12
+			local altTit = lblTitulo.TextBounds.Y
+			local altMsg = lblMsg.TextBounds.Y
+			local altTotal = math.max(topPad + altTit + gap + altMsg + botPad + 3, minH)
+
+			card.Size = UDim2.new(1,0,0,altTotal)
+
+			-- posicionar elementos verticalmente
+			local midY = altTotal / 2
+			ic.Position    = UDim2.new(0, 14, 0, midY - icSize/2)
+			lblTitulo.Position = UDim2.new(0, txtX, 0, topPad)
+			lblMsg.Position    = UDim2.new(0, txtX, 0, topPad + altTit + gap)
+
+			-- animação de entrada (desliza da direita com bounce)
+			Tw(card, 0.35, {Position=UDim2.new(0,0,0,0)},
+				Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+
+			-- ícone pulsa ao entrar
+			task.delay(0.1, function()
+				if not ic.Parent then return end
+				Tw(ic, 0.12, {Size=UDim2.new(0,icSize+5,0,icSize+5)}):Play()
+				task.delay(0.12, function()
+					if not ic.Parent then return end
+					Tw(ic, 0.18, {Size=UDim2.new(0,icSize,0,icSize)},
+						Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+				end)
+			end)
+
 			task.spawn(function()
-				Tw(fill,duracao,{Size=UDim2.new(0,0,1,0)},Enum.EasingStyle.Linear):Play()
+				-- barra de progresso drena
+				Tw(prog, duracao, {Size=UDim2.new(0,0,1,0)}, Enum.EasingStyle.Linear):Play()
 				task.wait(duracao)
-				Tw(card,0.2,{Position=UDim2.new(0,NOTIF_W+10,0,0)},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
-				task.wait(0.22); card:Destroy()
+				if not card.Parent then return end
+				-- sai pela direita com fade
+				Tw(card, 0.25, {
+					Position=UDim2.new(0, NOTIF_W+20, 0, 0),
+					BackgroundTransparency=1,
+				}, Enum.EasingStyle.Quart, Enum.EasingDirection.In):Play()
+				Tw(cardBrd, 0.25, {Transparency=1}):Play()
+				task.wait(0.26)
+				if card.Parent then card:Destroy() end
 			end)
 		end)
 	end
