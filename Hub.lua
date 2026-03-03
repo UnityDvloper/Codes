@@ -1495,17 +1495,17 @@ function Hub.novo(nome, tema, velocidade)
 				placeholder = cfg.placeholder
 			end
 
-			local multiSelect = multi      or false
-			local useSearch   = search ~= false
-			local maxVis      = maxVisible  or 5
+			local multiSelect    = multi      or false
+			local useSearch      = search ~= false
+			local maxVis         = maxVisible  or 5
 			local placeholderTxt = placeholder or opcoes[1] or "-"
 
-			local aberto    = false
-			local IHd       = IS_MOBILE and 38 or 34
-			local FH        = IS_MOBILE and 44 or 44
-			local GAP       = 4
-			local PAD       = 8
-			local SEARCH_H  = useSearch and (IS_MOBILE and 36 or 32) or 0
+			local aberto = false
+			local IHd    = IS_MOBILE and 38 or 34
+			local FH     = IS_MOBILE and 44 or 44
+			local GAP    = 4
+			local PAD    = 8
+			local SEARCH_H = useSearch and (IS_MOBILE and 36 or 32) or 0
 
 			local selSimples = opcoes[1] or placeholderTxt
 			local selMulti   = {}
@@ -1520,43 +1520,68 @@ function Hub.novo(nome, tema, velocidade)
 				end
 			end
 
-			local fr = F({Size=UDim2.new(1,-6,0,FH), BackgroundColor3=C.Cartao,
-				ClipsDescendants=false, LayoutOrder=PO(), Parent=pagina})
+			-- ╔══════════════════════════════════════════════════════╗
+			-- ║  ClipsDescendants=TRUE — o fr cresce de verdade no  ║
+			-- ║  UIListLayout, empurrando elementos abaixo dele.    ║
+			-- ║  Sem sobreposição sobre toggles/textos/etc.         ║
+			-- ╚══════════════════════════════════════════════════════╝
+			local fr = F({
+				Size=UDim2.new(1,-6,0,FH),
+				BackgroundColor3=C.Cartao,
+				ClipsDescendants=true,
+				LayoutOrder=PO(),
+				Parent=pagina,
+			})
 			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
 
+			-- cabeçalho (botão clicável)
 			local cab = Instance.new("TextButton")
-			cab.Size=UDim2.new(1,0,0,FH); cab.BackgroundTransparency=1
-			cab.Text=""; cab.AutoButtonColor=false; cab.Parent=fr
+			cab.Size=UDim2.new(1,0,0,FH)
+			cab.BackgroundTransparency=1
+			cab.Text=""; cab.AutoButtonColor=false
+			cab.ZIndex=2; cab.Parent=fr
 
 			L({Size=UDim2.new(0.45,0,1,0), Position=UDim2.new(0,14,0,0), Text=texto,
 				TextColor3=C.Sub, Font=Enum.Font.Gotham, TextSize=12,
-				TextXAlignment=Enum.TextXAlignment.Left, Parent=cab})
+				TextXAlignment=Enum.TextXAlignment.Left, ZIndex=3, Parent=cab})
 
 			local lblS = L({Size=UDim2.new(0.42,0,1,0), Position=UDim2.new(0.5,-2,0,0),
 				Text=GetLabel(), TextColor3=C.Texto, Font=Enum.Font.GothamBold,
 				TextSize=IS_MOBILE and 11 or 12, TextWrapped=true,
-				TextXAlignment=Enum.TextXAlignment.Right, Parent=cab})
+				TextXAlignment=Enum.TextXAlignment.Right, ZIndex=3, Parent=cab})
 			RC(lblS,"TextColor3","Texto")
 
 			local badge = F({Size=UDim2.new(0,18,0,18), Position=UDim2.new(1,-46,0.5,-9),
-				BackgroundColor3=C.Destaque, ZIndex=2, Visible=false, Parent=cab})
+				BackgroundColor3=C.Destaque, ZIndex=3, Visible=false, Parent=cab})
 			Cantos(badge,99); RC(badge,"BackgroundColor3","Destaque")
-			local badgeLbl = L({Size=UDim2.new(1,0,1,0), Text="0",
-				TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold, TextSize=9, ZIndex=3, Parent=badge})
+			L({Size=UDim2.new(1,0,1,0), Text="0",
+				TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold, TextSize=9, ZIndex=4, Parent=badge})
+			local badgeLbl = badge:FindFirstChildWhichIsA("TextLabel")
 
 			local seta = L({Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-26,0,0),
 				Text="›", TextColor3=C.Fraco, Font=Enum.Font.GothamBold,
-				TextSize=16, Rotation=90, Parent=cab})
+				TextSize=16, Rotation=90, ZIndex=3, Parent=cab})
 			RC(seta,"TextColor3","Fraco")
 
+			-- separador entre cabeçalho e conteúdo
+			local sep = F({Size=UDim2.new(1,0,0,1), Position=UDim2.new(0,0,0,FH),
+				BackgroundColor3=C.Borda, ZIndex=2, Parent=fr})
+			RC(sep,"BackgroundColor3","Borda")
+
+			-- campo de busca
 			local searchBox = nil
+			local sfrRef    = nil
 			if useSearch then
-				local sfr = F({Size=UDim2.new(1,-16,0,SEARCH_H-4), Position=UDim2.new(0,8,0,FH+4),
-					BackgroundColor3=C.Item, ZIndex=2, Parent=fr})
-				Cantos(sfr,8); RC(sfr,"BackgroundColor3","Item")
-				local sbrd = Stroke(sfr,C.Borda,1,0.4); RC(sbrd,"Color","Borda")
+				sfrRef = F({
+					Size=UDim2.new(1,-16,0,SEARCH_H-6),
+					Position=UDim2.new(0,8,0,FH+6),
+					BackgroundColor3=C.Item, ZIndex=2, Parent=fr,
+				})
+				Cantos(sfrRef,8); RC(sfrRef,"BackgroundColor3","Item")
+				local sbrd = Stroke(sfrRef,C.Borda,1,0.4); RC(sbrd,"Color","Borda")
 				L({Size=UDim2.new(0,18,1,0), Position=UDim2.new(0,6,0,0),
-					Text="🔍", TextSize=IS_MOBILE and 12 or 11, Font=Enum.Font.Gotham, ZIndex=3, Parent=sfr})
+					Text="🔍", TextSize=IS_MOBILE and 12 or 11,
+					Font=Enum.Font.Gotham, ZIndex=3, Parent=sfrRef})
 				searchBox = Instance.new("TextBox")
 				searchBox.Size=UDim2.new(1,-30,1,-8); searchBox.Position=UDim2.new(0,26,0,4)
 				searchBox.BackgroundTransparency=1; searchBox.Text=""
@@ -1564,12 +1589,13 @@ function Hub.novo(nome, tema, velocidade)
 				searchBox.TextColor3=C.Texto; searchBox.Font=Enum.Font.Gotham
 				searchBox.TextSize=IS_MOBILE and 12 or 11
 				searchBox.TextXAlignment=Enum.TextXAlignment.Left
-				searchBox.ClearTextOnFocus=false; searchBox.ZIndex=3; searchBox.Parent=sfr
+				searchBox.ClearTextOnFocus=false; searchBox.ZIndex=3; searchBox.Parent=sfrRef
 				RC(searchBox,"TextColor3","Texto"); RC(searchBox,"PlaceholderColor3","Fraco")
 				searchBox.Focused:Connect(function() Tw(sbrd,0.15,{Color=C.Destaque,Transparency=0}):Play() end)
 				searchBox.FocusLost:Connect(function() Tw(sbrd,0.15,{Color=C.Borda,Transparency=0.4}):Play() end)
 			end
 
+			-- lista de itens (ScrollingFrame dentro do fr)
 			local listaHolder = Instance.new("ScrollingFrame")
 			listaHolder.BackgroundTransparency=1; listaHolder.BorderSizePixel=0
 			listaHolder.ScrollBarThickness=IS_MOBILE and 0 or 3
@@ -1586,11 +1612,15 @@ function Hub.novo(nome, tema, velocidade)
 				if not multiSelect then return end
 				local cnt=0
 				for _,op in ipairs(opcoes) do if selMulti[op] then cnt+=1 end end
-				badge.Visible=cnt>0; badgeLbl.Text=tostring(cnt)
+				badge.Visible=cnt>0
+				if badgeLbl then badgeLbl.Text=tostring(cnt) end
 			end
 
-			local function CalcAltura(visCount)
-				return FH + SEARCH_H + math.min(visCount, maxVis) * (IHd + GAP) + PAD * 2
+			-- altura total do fr quando aberto
+			local function CalcAlturaTotal(visCount)
+				local linhas = math.min(visCount, maxVis)
+				local altLista = linhas*(IHd+GAP) + PAD*2
+				return FH + 1 + SEARCH_H + altLista
 			end
 
 			local _syncValorRef = {fn = function() end}
@@ -1661,6 +1691,7 @@ function Hub.novo(nome, tema, velocidade)
 							_syncValorRef.fn()
 							if callback then callback(GetLabel(), selMulti) end
 						else
+							-- atualizar seleção visual
 							selSimples=op; lblS.Text=op
 							for _,entry in ipairs(todosItens) do
 								local sel2=entry.op==op
@@ -1682,9 +1713,11 @@ function Hub.novo(nome, tema, velocidade)
 					L({Size=UDim2.new(1,0,1,0),Text="Nenhum resultado",TextColor3=C.Fraco,Font=Enum.Font.Gotham,TextSize=12,ZIndex=3,Parent=empty})
 				end
 
-				local altLista = math.min(visiveis>0 and visiveis or 1, maxVis) * (IHd+GAP) + PAD*2
+				-- posicionar e dimensionar a lista dentro do fr
+				local linhas = math.min(visiveis>0 and visiveis or 1, maxVis)
+				local altLista = linhas*(IHd+GAP) + PAD*2
 				listaHolder.Size=UDim2.new(1,0,0,altLista)
-				listaHolder.Position=UDim2.new(0,0,0,FH+SEARCH_H)
+				listaHolder.Position=UDim2.new(0,0,0, FH + 1 + SEARCH_H)
 				listaHolder.CanvasSize=UDim2.new(0,0,0,lyL.AbsoluteContentSize.Y+8)
 				return visiveis
 			end
@@ -1693,25 +1726,17 @@ function Hub.novo(nome, tema, velocidade)
 
 			if searchBox then
 				searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-					local vis=ConstruirItens(searchBox.Text)
-					if aberto then Tw(fr,0.12,{Size=UDim2.new(1,-6,0,CalcAltura(vis))}):Play() end
+					local vis = ConstruirItens(searchBox.Text)
+					if aberto then
+						Tw(fr, 0.12, {Size=UDim2.new(1,-6,0,CalcAlturaTotal(vis))}):Play()
+					end
 				end)
 			end
 
-			listaHolder.Visible = false
-			if searchBox then searchBox.Parent.Visible = false end
-
 			local function FecharDropdown()
 				aberto=false
-				-- esconder IMEDIATAMENTE para evitar sobreposição (ClipsDescendants=false)
-				listaHolder.Visible = false
-				if searchBox and searchBox.Parent then
-					searchBox.Parent.Visible = false
-				end
-				-- animar o frame fechando
 				Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
 				Tw(seta,0.2,{Rotation=90}):Play()
-				-- limpar busca depois da animação
 				task.delay(0.2, function()
 					if searchBox and searchBox.Parent then
 						searchBox.Text = ""
@@ -1721,13 +1746,8 @@ function Hub.novo(nome, tema, velocidade)
 
 			local function AbrirDropdown()
 				aberto=true
-				listaHolder.Visible = true
-				if searchBox and searchBox.Parent then searchBox.Parent.Visible = true end
-				local cnt=0
-				for _,ch in ipairs(listaHolder:GetChildren()) do
-					if ch:IsA("TextButton") or ch:IsA("Frame") then cnt+=1 end
-				end
-				Tw(fr,0.25,{Size=UDim2.new(1,-6,0,CalcAltura(cnt))},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
+				local vis = ConstruirItens(searchBox and searchBox.Text or "")
+				Tw(fr,0.25,{Size=UDim2.new(1,-6,0,CalcAlturaTotal(vis))},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
 				Tw(seta,0.2,{Rotation=-90}):Play()
 			end
 
