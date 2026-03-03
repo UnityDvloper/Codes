@@ -364,8 +364,19 @@ function Hub.novo(nome, tema, velocidade)
 		if isRainbow then AddRainbow(ponto,"BackgroundColor3",0.25); AddRainbow(linhaTop,"BackgroundColor3",0.12) end
 		if _todasTabsRef then
 			for _,t in pairs(_todasTabsRef) do
-				if t._ativo then pcall(function() t.btn.BackgroundColor3=C.Destaque; t.btn.TextColor3=Color3.new(1,1,1) end)
-				else pcall(function() t.btn.BackgroundColor3=C.Item; t.btn.TextColor3=C.Sub end) end
+				if t._ativo then
+					pcall(function()
+						t.btn.BackgroundColor3=C.Destaque
+						t.lbl.TextColor3=Color3.new(1,1,1)
+						if t.ico then t.ico.TextColor3=Color3.new(1,1,1) end
+					end)
+				else
+					pcall(function()
+						t.btn.BackgroundColor3=C.Item
+						t.lbl.TextColor3=C.Sub
+						if t.ico then t.ico.TextColor3=C.Fraco end
+					end)
+				end
 			end
 		end
 		self:Notificar("Tema","Tema alterado para "..novoTema,"info",2.5)
@@ -429,52 +440,112 @@ function Hub.novo(nome, tema, velocidade)
 		end)
 	end
 
+	-- ══════════════════════════════════════════════
+	--  SIDEBAR REDESENHADA
+	-- ══════════════════════════════════════════════
 	local pagArea, scrollTabs
 	local SW = SIDEBAR_W
-	local sidebar=F({Size=UDim2.new(0,SW,1,0),BackgroundColor3=C.Sidebar,Parent=corpo})
-	RegCor(sidebar,"BackgroundColor3","Sidebar"); Cantos(sidebar,12)
-	F({Size=UDim2.new(1,0,0,12),BackgroundColor3=C.Sidebar,Parent=sidebar})
-	local divSide=F({Size=UDim2.new(0,1,1,0),Position=UDim2.new(1,-1,0,0),BackgroundColor3=C.Borda,Parent=sidebar})
-	RegCor(divSide,"BackgroundColor3","Borda")
-	if not IS_MOBILE then
-		local lblNav=L({Size=UDim2.new(1,0,0,28),Position=UDim2.new(0,0,0,14),
-			Text="NAVEGAÇÃO",TextColor3=C.Fraco,Font=Enum.Font.GothamBold,TextSize=8,ZIndex=2,Parent=sidebar})
-		RegCor(lblNav,"TextColor3","Fraco")
-	end
-	local topOffsetSidebar=IS_MOBILE and 8 or 48
-	scrollTabs=Instance.new("ScrollingFrame")
-	scrollTabs.Size=UDim2.new(1,0,1,-topOffsetSidebar); scrollTabs.Position=UDim2.new(0,0,0,topOffsetSidebar)
-	scrollTabs.CanvasSize=UDim2.new(0,0,0,0); scrollTabs.ScrollBarThickness=IS_MOBILE and 0 or 2
-	scrollTabs.ScrollBarImageColor3=C.Destaque; scrollTabs.BackgroundTransparency=1
-	scrollTabs.BorderSizePixel=0; scrollTabs.ScrollingDirection=Enum.ScrollingDirection.Y
-	scrollTabs.Parent=sidebar
-	Pad(scrollTabs,4,10,IS_MOBILE and 4 or 8,IS_MOBILE and 4 or 8)
-	local lyT=Instance.new("UIListLayout",scrollTabs)
-	lyT.Padding=UDim.new(0,4); lyT.HorizontalAlignment=Enum.HorizontalAlignment.Center
-	lyT:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		scrollTabs.CanvasSize=UDim2.new(0,0,0,lyT.AbsoluteContentSize.Y+16)
-	end)
-	pagArea=F({Size=UDim2.new(1,-(SW+4),1,-8),Position=UDim2.new(0,SW+2,0,4),BackgroundTransparency=1,Parent=corpo})
 
-	local todasTabs={}
-	local tabAtiva=nil
-	_todasTabsRef=todasTabs
+	local sidebar = F({
+		Size=UDim2.new(0,SW,1,0),
+		BackgroundColor3=C.Sidebar, Parent=corpo,
+	})
+	RegCor(sidebar,"BackgroundColor3","Sidebar")
+	Cantos(sidebar,12)
+	-- tampa os cantos arredondados da esquerda
+	F({Size=UDim2.new(0.5,0,1,0), BackgroundColor3=C.Sidebar, Parent=sidebar})
+	RegCor(F({Size=UDim2.new(0.5,0,1,0), BackgroundColor3=C.Sidebar, Parent=sidebar}),"BackgroundColor3","Sidebar")
+
+	-- divisor direito com gradiente sutil
+	local divSide = F({
+		Size=UDim2.new(0,1,1,0), Position=UDim2.new(1,-1,0,0),
+		BackgroundColor3=C.Borda, ZIndex=3, Parent=sidebar,
+	})
+	RegCor(divSide,"BackgroundColor3","Borda")
+
+	-- label "MENU" no topo da sidebar (só desktop)
+	local topOffsetSidebar = IS_MOBILE and 10 or 44
+	if not IS_MOBILE then
+		local lblNav = L({
+			Size=UDim2.new(1,-16,0,26), Position=UDim2.new(0,8,0,10),
+			Text="MENU", TextColor3=C.Destaque, Font=Enum.Font.GothamBold,
+			TextSize=9, TextXAlignment=Enum.TextXAlignment.Left,
+			LetterSpacing=4, ZIndex=3, Parent=sidebar,
+		})
+		RegCor(lblNav,"TextColor3","Destaque")
+		-- linha abaixo do label
+		local linhMenu = F({
+			Size=UDim2.new(1,-16,0,1), Position=UDim2.new(0,8,0,36),
+			BackgroundColor3=C.Borda, ZIndex=3, Parent=sidebar,
+		})
+		RegCor(linhMenu,"BackgroundColor3","Borda")
+	end
+
+	scrollTabs = Instance.new("ScrollingFrame")
+	scrollTabs.Size = UDim2.new(1,0,1,-topOffsetSidebar)
+	scrollTabs.Position = UDim2.new(0,0,0,topOffsetSidebar)
+	scrollTabs.CanvasSize = UDim2.new(0,0,0,0)
+	scrollTabs.ScrollBarThickness = 0
+	scrollTabs.BackgroundTransparency = 1
+	scrollTabs.BorderSizePixel = 0
+	scrollTabs.ScrollingDirection = Enum.ScrollingDirection.Y
+	scrollTabs.Parent = sidebar
+	Pad(scrollTabs, 6, 10, IS_MOBILE and 5 or 7, IS_MOBILE and 5 or 7)
+	local lyT = Instance.new("UIListLayout", scrollTabs)
+	lyT.Padding = UDim.new(0, IS_MOBILE and 4 or 5)
+	lyT.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	lyT:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		scrollTabs.CanvasSize = UDim2.new(0,0,0,lyT.AbsoluteContentSize.Y+20)
+	end)
+
+	pagArea = F({
+		Size=UDim2.new(1,-(SW+6),1,-10),
+		Position=UDim2.new(0,SW+2,0,5),
+		BackgroundTransparency=1, Parent=corpo,
+	})
+
+	local todasTabs = {}
+	local tabAtiva  = nil
+	_todasTabsRef   = todasTabs
 
 	local function AtivarAba(e)
-		if tabAtiva==e then return end
-		tabAtiva=e
-		for _,t in ipairs(todasTabs) do
-			local ok=(t==e); t._ativo=ok; t.pagina.Visible=ok
+		if tabAtiva == e then return end
+		local anterior = tabAtiva
+		tabAtiva = e
+
+		for _, t in ipairs(todasTabs) do
+			local ok = (t == e)
+			t._ativo = ok
+			t.pagina.Visible = ok
+
 			if ok then
-				Tw(t.btn,0.18,{BackgroundColor3=C.Destaque}):Play()
-				Tw(t.btn,0.18,{TextColor3=Color3.new(1,1,1)}):Play()
-				t.btn.Font=Enum.Font.GothamBold
-				if t.ind then t.ind.BackgroundTransparency=0; Tw(t.ind,0.2,{Size=UDim2.new(0,3,0.65,0)}):Play() end
+				-- ativa: fundo destaque + texto branco + indicador cresce
+				Tw(t.btn, 0.2, {BackgroundColor3=C.Destaque}, Enum.EasingStyle.Quart):Play()
+				Tw(t.lbl, 0.2, {TextColor3=Color3.new(1,1,1)}):Play()
+				if t.ico then Tw(t.ico, 0.2, {TextColor3=Color3.new(1,1,1)}):Play() end
+				t.lbl.Font = Enum.Font.GothamBold
+				-- indicador lateral
+				if t.ind then
+					t.ind.BackgroundTransparency = 0
+					Tw(t.ind, 0.22, {Size=UDim2.new(0,3,0.7,0)},
+						Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+				end
+				-- brilho pontual no botão
+				if t.glow then
+					t.glow.BackgroundTransparency = 0.82
+					Tw(t.glow, 0.35, {BackgroundTransparency=1}):Play()
+				end
 			else
-				Tw(t.btn,0.18,{BackgroundColor3=C.Item}):Play()
-				Tw(t.btn,0.18,{TextColor3=C.Sub}):Play()
-				t.btn.Font=Enum.Font.Gotham
-				if t.ind then t.ind.BackgroundTransparency=1; Tw(t.ind,0.2,{Size=UDim2.new(0,3,0,0)}):Play() end
+				Tw(t.btn, 0.18, {BackgroundColor3=C.Item}):Play()
+				Tw(t.lbl, 0.18, {TextColor3=C.Sub}):Play()
+				if t.ico then Tw(t.ico, 0.18, {TextColor3=C.Fraco}):Play() end
+				t.lbl.Font = Enum.Font.Gotham
+				if t.ind then
+					Tw(t.ind, 0.15, {Size=UDim2.new(0,3,0,0)}):Play()
+					task.delay(0.15, function()
+						if not t._ativo then t.ind.BackgroundTransparency=1 end
+					end)
+				end
 			end
 		end
 	end
@@ -482,55 +553,117 @@ function Hub.novo(nome, tema, velocidade)
 	local hubSelf = self
 
 	function self:CriarAba(nomeAba, icone)
-		local btn=Instance.new("TextButton")
-		local ind
-		if IS_MOBILE then
-			local textoBtn=icone or nomeAba
-			btn.Size=UDim2.new(1,0,0,34); btn.BackgroundColor3=C.Item; btn.TextColor3=C.Sub
-			btn.Text=textoBtn; btn.Font=Enum.Font.GothamBold; btn.TextSize=icone and 16 or 9
-			btn.AutoButtonColor=false; btn.ClipsDescendants=true; btn.TextWrapped=true
-			btn.TextScaled=false; btn.Parent=scrollTabs
-			Cantos(btn,8)
-			if icone then
-				local lblAbrev=L({Size=UDim2.new(1,0,0,11),Position=UDim2.new(0,0,1,-13),
-					Text=nomeAba,TextColor3=C.Sub,Font=Enum.Font.GothamBold,TextSize=8,ZIndex=2,TextWrapped=true,Parent=btn})
-				RegCor(lblAbrev,"TextColor3","Sub")
-			end
-			ind=F({Size=UDim2.new(0,3,0,0),Position=UDim2.new(0,0,0.175,0),BackgroundColor3=C.Destaque,BackgroundTransparency=1,ZIndex=2,Parent=btn})
-			Cantos(ind,4); RegCor(ind,"BackgroundColor3","Destaque")
-		else
-			local textoBtn=icone and (icone.."  "..nomeAba) or nomeAba
-			btn.Size=UDim2.new(1,0,0,38); btn.BackgroundColor3=C.Item; btn.TextColor3=C.Sub
-			btn.Text=textoBtn; btn.Font=Enum.Font.Gotham; btn.TextSize=13
-			btn.AutoButtonColor=false; btn.ClipsDescendants=true; btn.Parent=scrollTabs
-			Cantos(btn,8)
-			ind=F({Size=UDim2.new(0,3,0,0),Position=UDim2.new(0,0,0.175,0),BackgroundColor3=C.Destaque,BackgroundTransparency=1,ZIndex=2,Parent=btn})
-			Cantos(ind,4); RegCor(ind,"BackgroundColor3","Destaque")
+		local BTN_H = IS_MOBILE and 40 or 42
+
+		-- container do botão (para permitir overflow do indicador)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1,0,0,BTN_H)
+		btn.BackgroundColor3 = C.Item
+		btn.Text = ""
+		btn.AutoButtonColor = false
+		btn.ClipsDescendants = false
+		btn.ZIndex = 2
+		btn.Parent = scrollTabs
+		Cantos(btn, 9)
+		RegCor(btn,"BackgroundColor3","Item")
+
+		-- borda sutil
+		local btnBrd = Stroke(btn, C.Borda, 1, 0.6)
+		RegCor(btnBrd,"Color","Borda")
+
+		-- indicador lateral esquerdo
+		local ind = F({
+			Size=UDim2.new(0,3,0,0),
+			Position=UDim2.new(0,-1,0.5,0),
+			AnchorPoint=Vector2.new(0,0.5),
+			BackgroundColor3=C.Destaque,
+			BackgroundTransparency=1,
+			ZIndex=4, Parent=btn,
+		})
+		Cantos(ind,99); RegCor(ind,"BackgroundColor3","Destaque")
+
+		-- glow de clique (flash)
+		local glow = F({
+			Size=UDim2.new(1,0,1,0),
+			BackgroundColor3=C.Destaque,
+			BackgroundTransparency=1,
+			ZIndex=3, Parent=btn,
+		})
+		Cantos(glow,9); RegCor(glow,"BackgroundColor3","Destaque")
+
+		-- ícone (se tiver)
+		local ico = nil
+		local lblX = 10
+		if icone then
+			ico = L({
+				Size=UDim2.new(0,22,1,0),
+				Position=UDim2.new(0,8,0,0),
+				Text=icone,
+				TextColor3=C.Fraco,
+				Font=Enum.Font.GothamBold,
+				TextSize=IS_MOBILE and 15 or 16,
+				ZIndex=3, Parent=btn,
+			})
+			RegCor(ico,"TextColor3","Fraco")
+			lblX = IS_MOBILE and 32 or 34
 		end
-		RegCor(btn,"BackgroundColor3","Item"); RegCor(btn,"TextColor3","Sub")
+
+		-- label do nome
+		local lbl = L({
+			Size=UDim2.new(1,-(lblX+6),1,0),
+			Position=UDim2.new(0,lblX,0,0),
+			Text=nomeAba,
+			TextColor3=C.Sub,
+			Font=Enum.Font.Gotham,
+			TextSize=IS_MOBILE and 11 or 12,
+			TextXAlignment=Enum.TextXAlignment.Left,
+			TextTruncate=Enum.TextTruncate.AtEnd,
+			ZIndex=3, Parent=btn,
+		})
+		RegCor(lbl,"TextColor3","Sub")
+
+		-- hover (só quando não ativo)
 		btn.MouseEnter:Connect(function()
-			if tabAtiva and tabAtiva.btn~=btn then Tw(btn,0.13,{BackgroundColor3=C.ItemHover}):Play() end
+			if tabAtiva and tabAtiva.btn ~= btn then
+				Tw(btn, 0.12, {BackgroundColor3=C.ItemHover}):Play()
+				Tw(btnBrd, 0.12, {Transparency=0.3}):Play()
+			end
 		end)
 		btn.MouseLeave:Connect(function()
-			if tabAtiva and tabAtiva.btn~=btn then Tw(btn,0.13,{BackgroundColor3=C.Item}):Play() end
+			if tabAtiva and tabAtiva.btn ~= btn then
+				Tw(btn, 0.12, {BackgroundColor3=C.Item}):Play()
+				Tw(btnBrd, 0.12, {Transparency=0.6}):Play()
+			end
+		end)
+		btn.MouseButton1Down:Connect(function()
+			Tw(btn, 0.07, {Size=UDim2.new(1,-4,0,BTN_H-2)}):Play()
+		end)
+		btn.MouseButton1Up:Connect(function()
+			Tw(btn, 0.12, {Size=UDim2.new(1,0,0,BTN_H)}):Play()
 		end)
 
-		local pagina=Instance.new("ScrollingFrame")
-		pagina.Size=UDim2.new(1,0,1,0); pagina.CanvasSize=UDim2.new(0,0,0,0)
-		pagina.ScrollBarThickness=3; pagina.ScrollBarImageColor3=C.Destaque
-		pagina.Visible=false; pagina.BackgroundTransparency=1
-		pagina.BorderSizePixel=0; pagina.Parent=pagArea
-		Pad(pagina,8,8,IS_MOBILE and 6 or 5,IS_MOBILE and 6 or 5)
-		local lyPag=Instance.new("UIListLayout",pagina)
-		lyPag.Padding=UDim.new(0,7); lyPag.SortOrder=Enum.SortOrder.LayoutOrder
+		-- página de conteúdo
+		local pagina = Instance.new("ScrollingFrame")
+		pagina.Size = UDim2.new(1,0,1,0)
+		pagina.CanvasSize = UDim2.new(0,0,0,0)
+		pagina.ScrollBarThickness = 3
+		pagina.ScrollBarImageColor3 = C.Destaque
+		pagina.Visible = false
+		pagina.BackgroundTransparency = 1
+		pagina.BorderSizePixel = 0
+		pagina.Parent = pagArea
+		Pad(pagina, 8, 8, IS_MOBILE and 6 or 5, IS_MOBILE and 6 or 5)
+		local lyPag = Instance.new("UIListLayout", pagina)
+		lyPag.Padding = UDim.new(0,7)
+		lyPag.SortOrder = Enum.SortOrder.LayoutOrder
 		lyPag:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			pagina.CanvasSize=UDim2.new(0,0,0,lyPag.AbsoluteContentSize.Y+20)
+			pagina.CanvasSize = UDim2.new(0,0,0,lyPag.AbsoluteContentSize.Y+20)
 		end)
 
-		local entrada={btn=btn,pagina=pagina,ind=ind,_ativo=false}
-		table.insert(todasTabs,entrada)
+		local entrada = {btn=btn, lbl=lbl, ico=ico, ind=ind, glow=glow, pagina=pagina, _ativo=false}
+		table.insert(todasTabs, entrada)
 		btn.MouseButton1Click:Connect(function() AtivarAba(entrada) end)
-		if #todasTabs==1 then AtivarAba(entrada) end
+		if #todasTabs == 1 then AtivarAba(entrada) end
 
 		local IH    = IS_MOBILE and 48 or 46
 		local BTN_H = IS_MOBILE and 42 or 40
