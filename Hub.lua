@@ -468,9 +468,9 @@ function Hub.novo(nome, tema, velocidade)
 	if not IS_MOBILE then
 		local lblNav = L({
 			Size=UDim2.new(1,-16,0,26), Position=UDim2.new(0,8,0,10),
-			Text="MENU", TextColor3=C.Destaque, Font=Enum.Font.GothamBold,
+			Text="M E N U", TextColor3=C.Destaque, Font=Enum.Font.GothamBold,
 			TextSize=9, TextXAlignment=Enum.TextXAlignment.Left,
-			LetterSpacing=4, ZIndex=3, Parent=sidebar,
+			ZIndex=3, Parent=sidebar,
 		})
 		RegCor(lblNav,"TextColor3","Destaque")
 		-- linha abaixo do label
