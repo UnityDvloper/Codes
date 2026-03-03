@@ -1333,24 +1333,6 @@ function Hub.novo(nome, tema, velocidade)
 				if aberto then FecharDropdown() else AbrirDropdown() end
 			end)
 
-			-- fecha só ao clicar fora do frame
-			table.insert(hubSelf._conexoes, EntradaUsuario.InputBegan:Connect(function(input)
-				if not aberto then return end
-				if input.UserInputType==Enum.UserInputType.MouseButton1
-				or input.UserInputType==Enum.UserInputType.Touch then
-					task.delay(0.05, function()
-						if not aberto then return end
-						local mp = EntradaUsuario:GetMouseLocation()
-						local ap = fr.AbsolutePosition
-						local as = fr.AbsoluteSize
-						local alturaReal = as.Y  -- fr já tem o tamanho correto após o tween
-						local dentro = mp.X >= ap.X and mp.X <= ap.X + as.X
-							and mp.Y >= ap.Y and mp.Y <= ap.Y + alturaReal
-						if not dentro then FecharDropdown() end
-					end)
-				end
-			end))
-
 			fr.MouseEnter:Connect(function()
 				if not aberto then Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end
 			end)
