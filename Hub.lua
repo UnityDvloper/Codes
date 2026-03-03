@@ -874,7 +874,12 @@ function Hub.novo(nome, tema, velocidade)
 			gradSat.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h,1,1))
 			gradSat.Rotation = 0; gradSat.Parent = cvFr
 
-			local cvDark = F({Size=UDim2.new(1,0,1,0), ZIndex=3, Parent=cvFr})
+			-- ╔══════════════════════════════════════════════════════╗
+			-- ║  FIX #5: cvDark PRECISA ser preto puro.             ║
+			-- ║  Sem isso o UIGradient aplica sobre cinza (default) ║
+			-- ║  e as cores ficam lavadas/erradas.                  ║
+			-- ╚══════════════════════════════════════════════════════╝
+			local cvDark = F({Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.new(0,0,0), ZIndex=3, Parent=cvFr})
 			Cantos(cvDark,6)
 			local gradDark = Instance.new("UIGradient")
 			gradDark.Color = ColorSequence.new(Color3.new(0,0,0),Color3.new(0,0,0))
