@@ -901,41 +901,136 @@ function Hub.novo(nome, tema, velocidade)
 		end
 
 		function Aba:CriarToggle(texto, padrao, callback)
-			local estado=(padrao==true)
-			local fr=F({Size=UDim2.new(1,-6,0,IH),BackgroundColor3=C.Cartao,LayoutOrder=PO(),Parent=pagina})
-			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
-			L({Size=UDim2.new(1,-100,1,0),Position=UDim2.new(0,14,0,0),Text=texto,TextColor3=C.Texto,Font=Enum.Font.Gotham,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,Parent=fr})
-			local TW,TH,BR=50,28,22
-			local trilha=F({Size=UDim2.new(0,TW,0,TH),Position=UDim2.new(1,-(TW+12),0.5,-(TH/2)),BackgroundColor3=estado and C.Sucesso or C.Item,Parent=fr})
-			Cantos(trilha,99)
-			local bolinha=F({Size=UDim2.new(0,BR,0,BR),Position=estado and UDim2.new(1,-(BR+3),0.5,-(BR/2)) or UDim2.new(0,3,0.5,-(BR/2)),BackgroundColor3=Color3.new(1,1,1),ZIndex=2,Parent=trilha})
-			Cantos(bolinha,99); Stroke(bolinha,Color3.new(0,0,0),1,0.82)
-			local lblE=L({Size=UDim2.new(0,36,1,0),Position=UDim2.new(1,-(TW+56),0,0),Text=estado and "ON" or "OFF",TextColor3=estado and C.Sucesso or C.Fraco,Font=Enum.Font.GothamBold,TextSize=11,Parent=fr})
+			local estado = (padrao == true)
+
+			local TW, TH = 52, 28
+			local BR      = TH - 6   -- bolinha = 22px
+
+			local fr = F({Size=UDim2.new(1,-6,0,IH), BackgroundColor3=C.Cartao, LayoutOrder=PO(), Parent=pagina})
+			Cantos(fr,10)
+			local frBrd = Stroke(fr, C.Borda, 1, 0.35); RC(frBrd,"Color","Borda")
+			RC(fr,"BackgroundColor3","Cartao")
+
+			-- label do texto
+			local lblTxt = L({
+				Size=UDim2.new(1,-(TW+80),1,0), Position=UDim2.new(0,14,0,0),
+				Text=texto, TextColor3=C.Texto, Font=Enum.Font.Gotham,
+				TextSize=13, TextXAlignment=Enum.TextXAlignment.Left, Parent=fr,
+			})
+			RC(lblTxt,"TextColor3","Texto")
+
+			-- trilha do toggle
+			local trilha = F({
+				Size=UDim2.new(0,TW,0,TH),
+				Position=UDim2.new(1,-(TW+12),0.5,-(TH/2)),
+				BackgroundColor3 = estado and C.Sucesso or C.Fraco,
+				ZIndex=2, Parent=fr,
+			})
+			Cantos(trilha, 99)
+			local trilhaBrd = Stroke(trilha, Color3.new(0,0,0), 1, 0.88)
+
+			-- brilho interno da trilha (glow quando ON)
+			local trilhaGlow = F({
+				Size=UDim2.new(1,0,1,0), BackgroundColor3=C.Sucesso,
+				BackgroundTransparency = estado and 0.7 or 1,
+				ZIndex=2, Parent=trilha,
+			})
+			Cantos(trilhaGlow,99)
+
+			-- bolinha
+			local bolinhaX_off = 3
+			local bolinhaX_on  = TW - BR - 3
+			local bolinha = F({
+				Size=UDim2.new(0,BR,0,BR),
+				Position=estado and UDim2.new(0,bolinhaX_on,0.5,-(BR/2)) or UDim2.new(0,bolinhaX_off,0.5,-(BR/2)),
+				BackgroundColor3=Color3.new(1,1,1), ZIndex=4, Parent=trilha,
+			})
+			Cantos(bolinha,99)
+			Stroke(bolinha, Color3.new(0,0,0), 1, 0.78)
+
+			-- label ON/OFF
+			local lblE = L({
+				Size=UDim2.new(0,38,1,0),
+				Position=UDim2.new(1,-(TW+56),0,0),
+				Text=estado and "ON" or "OFF",
+				TextColor3=estado and C.Sucesso or C.Fraco,
+				Font=Enum.Font.GothamBold, TextSize=11, Parent=fr,
+			})
+
 			local function Sync(anim)
-				local d=anim and 0.18 or 0
-				if estado then Tw(trilha,d,{BackgroundColor3=C.Sucesso}):Play(); Tw(bolinha,d,{Position=UDim2.new(1,-(BR+3),0.5,-(BR/2))}):Play(); Tw(lblE,d,{TextColor3=C.Sucesso}):Play(); lblE.Text="ON"
-				else Tw(trilha,d,{BackgroundColor3=C.Item}):Play(); Tw(bolinha,d,{Position=UDim2.new(0,3,0.5,-(BR/2))}):Play(); Tw(lblE,d,{TextColor3=C.Fraco}):Play(); lblE.Text="OFF" end
+				local d = anim and 0.2 or 0
+				local es = Enum.EasingStyle.Back
+				local eo = Enum.EasingDirection.Out
+				if estado then
+					-- trilha verde + glow
+					Tw(trilha, d, {BackgroundColor3=C.Sucesso}):Play()
+					Tw(trilhaGlow, d, {BackgroundTransparency=0.7}):Play()
+					Tw(trilhaBrd, d, {Transparency=0.88}):Play()
+					-- bolinha desliza para direita com efeito elástico
+					Tw(bolinha, d, {Position=UDim2.new(0,bolinhaX_on,0.5,-(BR/2))}, es, eo):Play()
+					-- bolinha estica levemente durante o movimento
+					if anim then
+						Tw(bolinha, d*0.4, {Size=UDim2.new(0,BR+5,0,BR-3)}):Play()
+						task.delay(d*0.4, function()
+							Tw(bolinha, d*0.6, {Size=UDim2.new(0,BR,0,BR)}, es, eo):Play()
+						end)
+					end
+					Tw(lblE, d, {TextColor3=C.Sucesso}):Play(); lblE.Text="ON"
+					-- borda do card fica na cor de sucesso
+					Tw(frBrd, d, {Color=C.Sucesso, Transparency=0.55}):Play()
+				else
+					Tw(trilha, d, {BackgroundColor3=C.Fraco}):Play()
+					Tw(trilhaGlow, d, {BackgroundTransparency=1}):Play()
+					Tw(trilhaBrd, d, {Transparency=0.88}):Play()
+					Tw(bolinha, d, {Position=UDim2.new(0,bolinhaX_off,0.5,-(BR/2))}, es, eo):Play()
+					if anim then
+						Tw(bolinha, d*0.4, {Size=UDim2.new(0,BR+5,0,BR-3)}):Play()
+						task.delay(d*0.4, function()
+							Tw(bolinha, d*0.6, {Size=UDim2.new(0,BR,0,BR)}, es, eo):Play()
+						end)
+					end
+					Tw(lblE, d, {TextColor3=C.Fraco}):Play(); lblE.Text="OFF"
+					Tw(frBrd, d, {Color=C.Borda, Transparency=0.35}):Play()
+				end
 				if callback then callback(estado) end
 			end
-			local THRESH=8; local touchStart,touchDrag=nil,false
+
+			-- clique no frame inteiro
+			local THRESH = 8
+			local touchStart, touchDrag = nil, false
+
 			fr.InputBegan:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.MouseButton1 then estado=not estado; Sync(true)
-				elseif i.UserInputType==Enum.UserInputType.Touch then touchStart=i.Position; touchDrag=false end
+				if i.UserInputType == Enum.UserInputType.MouseButton1 then
+					estado = not estado; Sync(true)
+				elseif i.UserInputType == Enum.UserInputType.Touch then
+					touchStart = i.Position; touchDrag = false
+				end
 			end)
 			fr.InputChanged:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.Touch and touchStart then
-					if math.abs(i.Position.X-touchStart.X)>THRESH or math.abs(i.Position.Y-touchStart.Y)>THRESH then touchDrag=true end
+				if i.UserInputType == Enum.UserInputType.Touch and touchStart then
+					if math.abs(i.Position.X-touchStart.X)>THRESH
+					or math.abs(i.Position.Y-touchStart.Y)>THRESH then
+						touchDrag = true
+					end
 				end
 			end)
 			fr.InputEnded:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.Touch then
+				if i.UserInputType == Enum.UserInputType.Touch then
 					if touchStart and not touchDrag then estado=not estado; Sync(true) end
 					touchStart=nil; touchDrag=false
 				end
 			end)
-			fr.MouseEnter:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end)
-			fr.MouseLeave:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end)
-			local obj={}
+
+			fr.MouseEnter:Connect(function()
+				Tw(fr, 0.12, {BackgroundColor3=C.ItemHover}):Play()
+				if not estado then Tw(frBrd,0.12,{Transparency=0.15}):Play() end
+			end)
+			fr.MouseLeave:Connect(function()
+				Tw(fr, 0.12, {BackgroundColor3=C.Cartao}):Play()
+				Tw(frBrd,0.12,{Transparency= estado and 0.55 or 0.35}):Play()
+			end)
+
+			local obj = {}
 			function obj:Definir(v) estado=v; Sync(true) end
 			function obj:Obter() return estado end
 			obj.Set=obj.Definir; obj.Get=obj.Obter
