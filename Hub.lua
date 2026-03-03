@@ -1189,6 +1189,7 @@ function Hub.novo(nome, tema, velocidade)
 			lyL.Padding=UDim.new(0,GAP); lyL.SortOrder=Enum.SortOrder.LayoutOrder
 
 			local todosItens = {}
+			local mouseNoFr = false  -- rastreia se o mouse está sobre o frame
 
 			local function AtualizarBadge()
 				if not multiSelect then return end
@@ -1201,7 +1202,7 @@ function Hub.novo(nome, tema, velocidade)
 				return FH + SEARCH_H + math.min(visCount, maxVis) * (IHd + GAP) + PAD * 2
 			end
 
-			local _syncValorRef = {fn = function() end} -- preenchido depois
+			local _syncValorRef = {fn = function() end}
 
 			local function ConstruirItens(filtro)
 				for _,ch in ipairs(listaHolder:GetChildren()) do
@@ -1219,40 +1220,56 @@ function Hub.novo(nome, tema, velocidade)
 					local ativo = multiSelect and selMulti[op]
 						or (not multiSelect and op==selSimples)
 
+					-- container do item (evita flicker de hover nos labels filhos)
 					local it = Instance.new("TextButton")
 					it.Size=UDim2.new(1,0,0,IHd)
 					it.BackgroundColor3 = ativo and C.BotaoFundo or C.Item
-					it.TextColor3       = ativo and C.BotaoTexto or C.Texto
-					it.Font             = ativo and Enum.Font.GothamBold or Enum.Font.Gotham
-					it.TextSize=IS_MOBILE and 12 or 13; it.Text=""
+					it.Text=""
 					it.AutoButtonColor=false; it.ZIndex=3; it.Parent=listaHolder
 					Cantos(it,8)
 
-					L({Size=UDim2.new(1,-36,1,0), Position=UDim2.new(0,12,0,0),
-						Text=op, TextColor3=it.TextColor3, Font=it.Font, TextSize=it.TextSize,
-						TextXAlignment=Enum.TextXAlignment.Left, ZIndex=4, Parent=it})
+					-- borda sutil no item
+					local itBrd = Stroke(it, ativo and C.Destaque or C.Borda, 1, ativo and 0.5 or 0.7)
+
+					-- label do texto (não bloqueia eventos do pai)
+					local itLbl = L({
+						Size=UDim2.new(1,-36,1,0), Position=UDim2.new(0,12,0,0),
+						Text=op,
+						TextColor3 = ativo and C.BotaoTexto or C.Texto,
+						Font = ativo and Enum.Font.GothamBold or Enum.Font.Gotham,
+						TextSize=IS_MOBILE and 12 or 13,
+						TextXAlignment=Enum.TextXAlignment.Left,
+						ZIndex=4, Parent=it,
+					})
 
 					local chk = L({Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-26,0,0),
 						Text="✓", TextColor3=C.Sucesso, Font=Enum.Font.GothamBold,
 						TextSize=14, ZIndex=4, Visible=ativo, Parent=it})
 
-					table.insert(todosItens, {btn=it, op=op, chk=chk})
+					table.insert(todosItens, {btn=it, lbl=itLbl, brd=itBrd, op=op, chk=chk})
 
+					-- hover limpo: só no TextButton, sem conflito de labels
 					it.MouseEnter:Connect(function()
-						local isAtivo=multiSelect and selMulti[op] or (not multiSelect and op==selSimples)
-						if not isAtivo then Tw(it,0.1,{BackgroundColor3=C.ItemHover}):Play() end
+						local isAtivo = multiSelect and selMulti[op] or (not multiSelect and op==selSimples)
+						if not isAtivo then
+							Tw(it,  0.1, {BackgroundColor3=C.ItemHover}):Play()
+							Tw(itBrd,0.1,{Transparency=0.3}):Play()
+						end
 					end)
 					it.MouseLeave:Connect(function()
-						local isAtivo=multiSelect and selMulti[op] or (not multiSelect and op==selSimples)
-						it.BackgroundColor3 = isAtivo and C.BotaoFundo or C.Item
+						local isAtivo = multiSelect and selMulti[op] or (not multiSelect and op==selSimples)
+						Tw(it,  0.1, {BackgroundColor3 = isAtivo and C.BotaoFundo or C.Item}):Play()
+						Tw(itBrd,0.1,{Transparency = isAtivo and 0.5 or 0.7}):Play()
 					end)
+
 					it.MouseButton1Click:Connect(function()
 						if multiSelect then
 							selMulti[op]=not selMulti[op]
 							local isNow=selMulti[op]
-							Tw(it,0.12,{BackgroundColor3=isNow and C.BotaoFundo or C.Item}):Play()
-							it.TextColor3=isNow and C.BotaoTexto or C.Texto
-							it.Font=isNow and Enum.Font.GothamBold or Enum.Font.Gotham
+							Tw(it,   0.12,{BackgroundColor3=isNow and C.BotaoFundo or C.Item}):Play()
+							Tw(itBrd,0.12,{Transparency=isNow and 0.5 or 0.7, Color=isNow and C.Destaque or C.Borda}):Play()
+							itLbl.TextColor3 = isNow and C.BotaoTexto or C.Texto
+							itLbl.Font       = isNow and Enum.Font.GothamBold or Enum.Font.Gotham
 							chk.Visible=isNow; AtualizarBadge(); lblS.Text=GetLabel()
 							_syncValorRef.fn()
 							if callback then callback(GetLabel(), selMulti) end
@@ -1263,9 +1280,11 @@ function Hub.novo(nome, tema, velocidade)
 							if searchBox then task.delay(0.2,function() if searchBox and searchBox.Parent then searchBox.Text="" end end) end
 							for _,entry in ipairs(todosItens) do
 								local sel2=entry.op==op
-								entry.btn.BackgroundColor3=sel2 and C.BotaoFundo or C.Item
-								entry.btn.TextColor3=sel2 and C.BotaoTexto or C.Texto
+								entry.btn.BackgroundColor3 = sel2 and C.BotaoFundo or C.Item
+								entry.lbl.TextColor3       = sel2 and C.BotaoTexto or C.Texto
+								entry.lbl.Font             = sel2 and Enum.Font.GothamBold or Enum.Font.Gotham
 								entry.chk.Visible=sel2
+								Tw(entry.brd,0.1,{Transparency=sel2 and 0.5 or 0.7, Color=sel2 and C.Destaque or C.Borda}):Play()
 							end
 							_syncValorRef.fn()
 							if callback then callback(selSimples) end
@@ -1315,22 +1334,25 @@ function Hub.novo(nome, tema, velocidade)
 				if aberto then FecharDropdown() else AbrirDropdown() end
 			end)
 
-			table.insert(hubSelf._conexoes, EntradaUsuario.InputBegan:Connect(function(input)
-				if not aberto then return end
-				if input.UserInputType==Enum.UserInputType.MouseButton1
-				or input.UserInputType==Enum.UserInputType.Touch then
-					task.delay(0.05, function()
-						if not aberto then return end
-						local mp=EntradaUsuario:GetMouseLocation()
-						local ap=fr.AbsolutePosition; local as=fr.AbsoluteSize
-						local dentro=mp.X>=ap.X and mp.X<=ap.X+as.X and mp.Y>=ap.Y and mp.Y<=ap.Y+as.Y
-						if not dentro then FecharDropdown() end
+			-- fecha só quando o mouse sair do frame inteiro (não fecha ao clicar nos itens)
+			fr.MouseEnter:Connect(function()
+				mouseNoFr = true
+				if not aberto then Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end
+			end)
+			fr.MouseLeave:Connect(function()
+				mouseNoFr = false
+				if not aberto then
+					Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play()
+				else
+					-- pequeno delay para não fechar ao mover o mouse entre cab e lista
+					task.delay(0.08, function()
+						if not mouseNoFr and aberto then
+							FecharDropdown()
+							Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play()
+						end
 					end)
 				end
-			end))
-
-			fr.MouseEnter:Connect(function() if not aberto then Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end end)
-			fr.MouseLeave:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end)
+			end)
 
 			-- .valor atualiza automaticamente sempre que a seleção muda
 			-- simples → string        ex: drop.valor == "Maçã"
