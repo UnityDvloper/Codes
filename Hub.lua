@@ -862,10 +862,17 @@ function Hub.novo(nome, tema, velocidade)
 			RC(pickerCorpo,"BackgroundColor3","Cartao")
 
 			-- ── CANVAS SV ──────────────────────────────────────────
+			-- ╔══════════════════════════════════════════════════════╗
+			-- ║  FIX #5: cvFr.BackgroundColor3 DEVE ser branco.     ║
+			-- ║  UIGradient multiplica suas cores pelo BackgroundColor3. ║
+			-- ║  Se BG for laranja, esq do gradSat fica laranja×branco ║
+			-- ║  = laranja, nunca branco. Com BG=branco: branco×branco ║
+			-- ║  = branco ✓   branco×hue = hue ✓                   ║
+			-- ╚══════════════════════════════════════════════════════╝
 			local cvFr = F({
 				Size=UDim2.new(0,CVW,0,CVH),
 				Position=UDim2.new(0,PAD,0,PAD),
-				BackgroundColor3=Color3.fromHSV(h,1,1),
+				BackgroundColor3=Color3.new(1,1,1),
 				ZIndex=2, Parent=pickerCorpo,
 			})
 			Cantos(cvFr,6); Stroke(cvFr,C.Borda,1,0.5)
@@ -1019,8 +1026,7 @@ function Hub.novo(nome, tema, velocidade)
 				preview.BackgroundColor3=corAtual
 				bigPrev.BackgroundColor3=corAtual
 				if not hexBox:IsFocused() then hexBox.Text=CorParaHex(corAtual) end
-				-- canvas
-				cvFr.BackgroundColor3=Color3.fromHSV(h,1,1)
+				-- canvas — cvFr fica sempre branco, só o gradSat muda
 				gradSat.Color=ColorSequence.new(Color3.new(1,1,1),Color3.fromHSV(h,1,1))
 				cvCursor.Position=UDim2.new(s,0,1-v,0)
 				cvCursor.BackgroundColor3=corAtual
