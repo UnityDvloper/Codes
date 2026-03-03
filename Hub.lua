@@ -1661,10 +1661,7 @@ function Hub.novo(nome, tema, velocidade)
 							_syncValorRef.fn()
 							if callback then callback(GetLabel(), selMulti) end
 						else
-							selSimples=op; lblS.Text=op; aberto=false
-							Tw(fr,0.18,{Size=UDim2.new(1,-6,0,FH)}):Play()
-							Tw(seta,0.18,{Rotation=90}):Play()
-							if searchBox then task.delay(0.2,function() if searchBox and searchBox.Parent then searchBox.Text="" end end) end
+							selSimples=op; lblS.Text=op
 							for _,entry in ipairs(todosItens) do
 								local sel2=entry.op==op
 								entry.btn.BackgroundColor3 = sel2 and C.BotaoFundo or C.Item
@@ -1675,6 +1672,7 @@ function Hub.novo(nome, tema, velocidade)
 							end
 							_syncValorRef.fn()
 							if callback then callback(selSimples) end
+							FecharDropdown()
 						end
 					end)
 				end
@@ -1705,12 +1703,17 @@ function Hub.novo(nome, tema, velocidade)
 
 			local function FecharDropdown()
 				aberto=false
+				-- esconder IMEDIATAMENTE para evitar sobreposição (ClipsDescendants=false)
+				listaHolder.Visible = false
+				if searchBox and searchBox.Parent then
+					searchBox.Parent.Visible = false
+				end
+				-- animar o frame fechando
 				Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
 				Tw(seta,0.2,{Rotation=90}):Play()
+				-- limpar busca depois da animação
 				task.delay(0.2, function()
-					listaHolder.Visible = false
 					if searchBox and searchBox.Parent then
-						searchBox.Parent.Visible = false
 						searchBox.Text = ""
 					end
 				end)
