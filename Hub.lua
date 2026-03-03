@@ -1129,7 +1129,7 @@ function Hub.novo(nome, tema, velocidade)
 			end
 
 			local fr = F({Size=UDim2.new(1,-6,0,FH), BackgroundColor3=C.Cartao,
-				ClipsDescendants=true, LayoutOrder=PO(), Parent=pagina})
+				ClipsDescendants=false, LayoutOrder=PO(), Parent=pagina})
 			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
 
 			local cab = Instance.new("TextButton")
@@ -1312,15 +1312,27 @@ function Hub.novo(nome, tema, velocidade)
 				end)
 			end
 
+			-- lista começa escondida (sem ClipsDescendants precisamos controlar manualmente)
+			listaHolder.Visible = false
+			if searchBox then searchBox.Parent.Visible = false end
+
 			local function FecharDropdown()
 				aberto=false
 				Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
 				Tw(seta,0.2,{Rotation=90}):Play()
-				if searchBox then task.delay(0.22,function() if searchBox and searchBox.Parent then searchBox.Text="" end end) end
+				task.delay(0.2, function()
+					listaHolder.Visible = false
+					if searchBox and searchBox.Parent then
+						searchBox.Parent.Visible = false
+						searchBox.Text = ""
+					end
+				end)
 			end
 
 			local function AbrirDropdown()
 				aberto=true
+				listaHolder.Visible = true
+				if searchBox and searchBox.Parent then searchBox.Parent.Visible = true end
 				local cnt=0
 				for _,ch in ipairs(listaHolder:GetChildren()) do
 					if ch:IsA("TextButton") or ch:IsA("Frame") then cnt+=1 end
