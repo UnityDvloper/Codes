@@ -801,20 +801,31 @@ function Hub.novo(nome, tema, velocidade)
 		local function RC(obj,prop,key) RegCor(obj,prop,key) end
 
 		-- ╔══════════════════════════════════════════════════════════╗
-		-- ║  CriarColorPicker                                       ║
+		-- ║  CriarColorPicker v2 — canvas SV 2D + hue bar + hex    ║
 		-- ╚══════════════════════════════════════════════════════════╝
 		function Aba:CriarColorPicker(texto, padraoColor3, callback)
 			local corAtual = padraoColor3 or Color3.fromRGB(255,255,255)
 			local h, s, v  = Color3.toHSV(corAtual)
 			local aberto   = false
-			local FH       = IS_MOBILE and 44 or 40
-			local PICKER_H = IS_MOBILE and 240 or 175
-			local AH       = FH + PICKER_H + 8
+
+			local FH       = IS_MOBILE and 44 or 42
+			local PAD      = 10
+
+			-- dimensões do canvas e barras
+			local CVW = IS_MOBILE and 180 or 200   -- canvas largura
+			local CVH = IS_MOBILE and 140 or 150   -- canvas altura
+			local BAR_H = IS_MOBILE and 14 or 14   -- hue bar altura
+			local BAR_GAP = 6
+			local RIGHT_W = IS_MOBILE and 90 or 100
+			local RIGHT_X = CVW + PAD * 2
+			local PICKER_H = PAD + CVH + BAR_GAP + BAR_H + BAR_GAP + BAR_H + PAD + 8
+			local AH = FH + PICKER_H + 4
 
 			local fr = F({Size=UDim2.new(1,-6,0,FH), BackgroundColor3=C.Cartao,
 				ClipsDescendants=true, LayoutOrder=PO(), Parent=pagina})
 			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
 
+			-- cabeçalho clicável
 			local cab = Instance.new("TextButton")
 			cab.Size=UDim2.new(1,0,0,FH); cab.BackgroundTransparency=1
 			cab.Text=""; cab.AutoButtonColor=false; cab.Parent=fr
@@ -823,171 +834,431 @@ function Hub.novo(nome, tema, velocidade)
 				TextColor3=C.Sub, Font=Enum.Font.Gotham, TextSize=12,
 				TextXAlignment=Enum.TextXAlignment.Left, Parent=cab})
 
-			local preview = F({Size=UDim2.new(0,22,0,22), Position=UDim2.new(1,-52,0.5,-11),
-				BackgroundColor3=corAtual, ZIndex=2, Parent=cab})
-			Cantos(preview,6); Stroke(preview,C.Borda,1,0.2)
+			-- preview quadrado na cabeça
+			local preview = F({Size=UDim2.new(0,24,0,24), Position=UDim2.new(1,-54,0.5,-12),
+				BackgroundColor3=corAtual, ZIndex=3, Parent=cab})
+			Cantos(preview,6)
+			-- xadrez para indicar transparência (visual)
+			Stroke(preview, Color3.fromRGB(0,0,0), 1, 0.65)
 
 			local seta = L({Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-26,0,0),
 				Text="›", TextColor3=C.Fraco, Font=Enum.Font.GothamBold,
 				TextSize=16, Rotation=90, Parent=cab})
 			RC(seta,"TextColor3","Fraco")
 
+			-- corpo do picker
 			local corpo2 = F({Size=UDim2.new(1,0,0,PICKER_H),
 				Position=UDim2.new(0,0,0,FH), BackgroundTransparency=1, Parent=fr})
 
-			local slH_ref, slS_ref, slV_ref
-			local bigPreview_ref, lblHex_ref
+			-- ── CANVAS SV ───────────────────────────────────────────
+			-- fundo branco → hue puro (esquerda→direita = saturation)
+			local canvasFrame = F({
+				Size=UDim2.new(0,CVW,0,CVH),
+				Position=UDim2.new(0,PAD,0,PAD),
+				BackgroundColor3=Color3.fromHSV(h,1,1),
+				ZIndex=2, Parent=corpo2,
+			})
+			Cantos(canvasFrame,6)
+			Stroke(canvasFrame,C.Borda,1,0.4)
+
+			-- gradiente S: branco → cor pura (esquerda → direita)
+			local gradS = Instance.new("UIGradient")
+			gradS.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h,1,1))
+			gradS.Rotation = 0
+			gradS.Parent = canvasFrame
+
+			-- gradiente V: transparente → preto (cima → baixo), sobre o gradS
+			local canvasV = F({
+				Size=UDim2.new(1,0,1,0),
+				BackgroundColor3=Color3.new(0,0,0),
+				BackgroundTransparency=0,
+				ZIndex=3, Parent=canvasFrame,
+			})
+			Cantos(canvasV,6)
+			local gradV = Instance.new("UIGradient")
+			gradV.Color = ColorSequence.new(Color3.new(0,0,0), Color3.new(0,0,0))
+			gradV.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(1, 0),
+			})
+			gradV.Rotation = 90
+			gradV.Parent = canvasV
+
+			-- hitbox do canvas
+			local canvasHit = Instance.new("TextButton")
+			canvasHit.Size=UDim2.new(1,0,1,0); canvasHit.BackgroundTransparency=1
+			canvasHit.Text=""; canvasHit.AutoButtonColor=false; canvasHit.ZIndex=5; canvasHit.Parent=canvasFrame
+
+			-- cursor do canvas (bolinha)
+			local cursor = F({
+				Size=UDim2.new(0,14,0,14),
+				AnchorPoint=Vector2.new(0.5,0.5),
+				Position=UDim2.new(s,0,1-v,0),
+				BackgroundColor3=Color3.new(1,1,1),
+				ZIndex=6, Parent=canvasFrame,
+			})
+			Cantos(cursor,99)
+			Stroke(cursor,Color3.new(0,0,0),2,0.3)
+
+			-- ── HUE BAR ─────────────────────────────────────────────
+			local hueY = PAD + CVH + BAR_GAP
+			local hueTrilha = F({
+				Size=UDim2.new(0,CVW,0,BAR_H),
+				Position=UDim2.new(0,PAD,0,hueY),
+				BackgroundColor3=Color3.new(1,1,1),
+				ZIndex=2, Parent=corpo2,
+			})
+			Cantos(hueTrilha,99)
+			Stroke(hueTrilha,C.Borda,1,0.4)
+			local hueKfs={}
+			for i=0,6 do hueKfs[#hueKfs+1]=ColorSequenceKeypoint.new(i/6,Color3.fromHSV(i/6,1,1)) end
+			local hueGrad = Instance.new("UIGradient")
+			hueGrad.Color = ColorSequence.new(hueKfs)
+			hueGrad.Rotation = 0
+			hueGrad.Parent = hueTrilha
+
+			local hueCursor = F({
+				Size=UDim2.new(0,BAR_H+4,0,BAR_H+4),
+				AnchorPoint=Vector2.new(0.5,0.5),
+				Position=UDim2.new(h,0,0.5,0),
+				BackgroundColor3=Color3.new(1,1,1),
+				ZIndex=4, Parent=hueTrilha,
+			})
+			Cantos(hueCursor,99)
+			Stroke(hueCursor,Color3.new(0,0,0),2,0.25)
+
+			local hueHit = Instance.new("TextButton")
+			hueHit.Size=UDim2.new(1,0,1,2); hueHit.Position=UDim2.new(0,0,0,-1)
+			hueHit.BackgroundTransparency=1; hueHit.Text=""
+			hueHit.AutoButtonColor=false; hueHit.ZIndex=5; hueHit.Parent=hueTrilha
+
+			-- ── VALUE BAR ────────────────────────────────────────────
+			local valY = hueY + BAR_H + BAR_GAP
+			local valTrilha = F({
+				Size=UDim2.new(0,CVW,0,BAR_H),
+				Position=UDim2.new(0,PAD,0,valY),
+				BackgroundColor3=Color3.new(1,1,1),
+				ZIndex=2, Parent=corpo2,
+			})
+			Cantos(valTrilha,99)
+			Stroke(valTrilha,C.Borda,1,0.4)
+			local valGrad = Instance.new("UIGradient")
+			valGrad.Color = ColorSequence.new(Color3.new(0,0,0), Color3.fromHSV(h,s,1))
+			valGrad.Rotation = 0
+			valGrad.Parent = valTrilha
+
+			local valCursor = F({
+				Size=UDim2.new(0,BAR_H+4,0,BAR_H+4),
+				AnchorPoint=Vector2.new(0.5,0.5),
+				Position=UDim2.new(v,0,0.5,0),
+				BackgroundColor3=Color3.new(1,1,1),
+				ZIndex=4, Parent=valTrilha,
+			})
+			Cantos(valCursor,99)
+			Stroke(valCursor,Color3.new(0,0,0),2,0.25)
+
+			local valHit = Instance.new("TextButton")
+			valHit.Size=UDim2.new(1,0,1,2); valHit.Position=UDim2.new(0,0,0,-1)
+			valHit.BackgroundTransparency=1; valHit.Text=""
+			valHit.AutoButtonColor=false; valHit.ZIndex=5; valHit.Parent=valTrilha
+
+			-- ── PAINEL DIREITO ───────────────────────────────────────
+			-- preview grande
+			local bigPrev = F({
+				Size=UDim2.new(0,RIGHT_W,0,50),
+				Position=UDim2.new(0,RIGHT_X,0,PAD),
+				BackgroundColor3=corAtual,
+				ZIndex=2, Parent=corpo2,
+			})
+			Cantos(bigPrev,8)
+			Stroke(bigPrev,C.Borda,1,0.3)
+
+			-- hex input
+			local hexFr = F({
+				Size=UDim2.new(0,RIGHT_W,0,28),
+				Position=UDim2.new(0,RIGHT_X,0,PAD+54),
+				BackgroundColor3=C.Item,
+				ZIndex=2, Parent=corpo2,
+			})
+			Cantos(hexFr,7); Stroke(hexFr,C.Borda,1,0.4)
+			RC(hexFr,"BackgroundColor3","Item")
 
 			local function CorParaHex(c)
 				return string.format("#%02X%02X%02X",
-					math.floor(c.R*255), math.floor(c.G*255), math.floor(c.B*255))
+					math.floor(c.R*255+0.5), math.floor(c.G*255+0.5), math.floor(c.B*255+0.5))
 			end
-			local function HueGrad()
-				local kfs={}
-				for i=0,6 do
-					table.insert(kfs, ColorSequenceKeypoint.new(i/6, Color3.fromHSV(i/6,1,1)))
-				end
-				return ColorSequence.new(kfs)
-			end
-
-			local function AtualizarTudo()
-				h = math.clamp(h,0,1); s = math.clamp(s,0,1); v = math.clamp(v,0,1)
-				corAtual = Color3.fromHSV(h,s,v)
-				preview.BackgroundColor3 = corAtual
-				if bigPreview_ref then bigPreview_ref.BackgroundColor3 = corAtual end
-				if lblHex_ref     then lblHex_ref.Text = CorParaHex(corAtual) end
-				if slH_ref then slH_ref.setPos(h); slH_ref.grad.Color = HueGrad() end
-				if slS_ref then slS_ref.setPos(s); slS_ref.grad.Color = ColorSequence.new(Color3.fromHSV(h,0,v), Color3.fromHSV(h,1,v)) end
-				if slV_ref then slV_ref.setPos(v); slV_ref.grad.Color = ColorSequence.new(Color3.fromHSV(h,s,0), Color3.fromHSV(h,s,1)) end
-				if callback then callback(corAtual) end
+			local function HexParaCor(hex)
+				hex = hex:gsub("#","")
+				if #hex ~= 6 then return nil end
+				local r=tonumber(hex:sub(1,2),16)
+				local g=tonumber(hex:sub(3,4),16)
+				local b=tonumber(hex:sub(5,6),16)
+				if not r or not g or not b then return nil end
+				return Color3.fromRGB(r,g,b)
 			end
 
-			local function CriarSliderHSV(label, yPos, xPos, largura, bolaSize, lblSize, hitH, prop)
-				L({Size=UDim2.new(0,largura,0,14), Position=UDim2.new(0,xPos,0,yPos),
-					Text=label, TextColor3=C.Sub, Font=Enum.Font.GothamBold, TextSize=lblSize,
-					TextXAlignment=Enum.TextXAlignment.Left, ZIndex=2, Parent=corpo2})
-				local trilha = F({Size=UDim2.new(0,largura,0,IS_MOBILE and 6 or 5),
-					Position=UDim2.new(0,xPos,0,yPos+(IS_MOBILE and 16 or 14)),
+			local hexBox = Instance.new("TextBox")
+			hexBox.Size=UDim2.new(1,-8,1,-6); hexBox.Position=UDim2.new(0,4,0,3)
+			hexBox.BackgroundTransparency=1; hexBox.Text=CorParaHex(corAtual)
+			hexBox.TextColor3=C.Texto; hexBox.Font=Enum.Font.GothamBold
+			hexBox.TextSize=11; hexBox.TextXAlignment=Enum.TextXAlignment.Center
+			hexBox.ClearTextOnFocus=false; hexBox.ZIndex=3; hexBox.Parent=hexFr
+			RC(hexBox,"TextColor3","Texto")
+
+			-- sliders R G B abaixo do hex
+			local rgbRefs = {}
+			local rgbCores = {
+				{label="R", cor=Color3.fromRGB(220,55,55),  prop="r"},
+				{label="G", cor=Color3.fromRGB(48,200,100), prop="g"},
+				{label="B", cor=Color3.fromRGB(55,140,220), prop="b"},
+			}
+			local function GetRGB()
+				return math.floor(corAtual.R*255+0.5),
+					   math.floor(corAtual.G*255+0.5),
+					   math.floor(corAtual.B*255+0.5)
+			end
+
+			for i, cfg2 in ipairs(rgbCores) do
+				local rowY = PAD + 86 + (i-1)*26
+				L({Size=UDim2.new(0,12,0,20), Position=UDim2.new(0,RIGHT_X,0,rowY),
+					Text=cfg2.label, TextColor3=cfg2.cor, Font=Enum.Font.GothamBold,
+					TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=2, Parent=corpo2})
+
+				local rTrilha = F({Size=UDim2.new(0,RIGHT_W-16,0,8),
+					Position=UDim2.new(0,RIGHT_X+14,0,rowY+6),
 					BackgroundColor3=C.Item, ZIndex=2, Parent=corpo2})
-				Cantos(trilha,99); RC(trilha,"BackgroundColor3","Item")
-				local grad = Instance.new("UIGradient"); grad.Rotation=0; grad.Parent=trilha
-				local bola = F({Size=UDim2.new(0,bolaSize,0,bolaSize), Position=UDim2.new(0,0,0.5,0),
-					AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=Color3.new(1,1,1), ZIndex=4, Parent=trilha})
-				Cantos(bola,99); Stroke(bola,Color3.new(0,0,0),1,0.7)
-				local hitbox = F({Size=UDim2.new(1,0,0,hitH), Position=UDim2.new(0,0,0.5,-hitH/2),
-					BackgroundTransparency=1, ZIndex=5, Parent=trilha})
-				local ativo = false
-				local function setPos(p) bola.Position = UDim2.new(math.clamp(p,0,1), 0, 0.5, 0) end
-				local function getP(inputX) return math.clamp((inputX - trilha.AbsolutePosition.X) / trilha.AbsoluteSize.X, 0, 1) end
-				hitbox.InputBegan:Connect(function(i)
+				Cantos(rTrilha,99); RC(rTrilha,"BackgroundColor3","Item")
+
+				local rGrad = Instance.new("UIGradient")
+				rGrad.Color = ColorSequence.new(Color3.new(0,0,0), cfg2.cor)
+				rGrad.Rotation = 0; rGrad.Parent = rTrilha
+
+				local rFill = F({Size=UDim2.new(0.5,0,1,0),
+					BackgroundColor3=cfg2.cor, ZIndex=3, Parent=rTrilha})
+				Cantos(rFill,99)
+
+				local rBola = F({Size=UDim2.new(0,12,0,12), AnchorPoint=Vector2.new(0.5,0.5),
+					Position=UDim2.new(0.5,0,0.5,0), BackgroundColor3=Color3.new(1,1,1),
+					ZIndex=4, Parent=rTrilha})
+				Cantos(rBola,99); Stroke(rBola,Color3.new(0,0,0),1,0.6)
+
+				local rHit = Instance.new("TextButton")
+				rHit.Size=UDim2.new(1,0,0,22); rHit.Position=UDim2.new(0,0,0.5,-11)
+				rHit.BackgroundTransparency=1; rHit.Text=""
+				rHit.AutoButtonColor=false; rHit.ZIndex=5; rHit.Parent=rTrilha
+
+				rgbRefs[cfg2.prop] = {trilha=rTrilha, fill=rFill, bola=rBola, hit=rHit}
+
+				local atvRGB = false
+				rHit.InputBegan:Connect(function(i)
 					if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-						ativo=true; local p=getP(i.Position.X)
-						if prop=="h" then h=p elseif prop=="s" then s=p else v=p end
-						AtualizarTudo(); Tw(bola,0.08,{Size=UDim2.new(0,bolaSize+4,0,bolaSize+4)}):Play()
+						atvRGB=true
+						local p=math.clamp((i.Position.X-rTrilha.AbsolutePosition.X)/rTrilha.AbsoluteSize.X,0,1)
+						local r2,g2,b2=GetRGB()
+						if cfg2.prop=="r" then r2=math.floor(p*255+0.5)
+						elseif cfg2.prop=="g" then g2=math.floor(p*255+0.5)
+						else b2=math.floor(p*255+0.5) end
+						local nc=Color3.fromRGB(r2,g2,b2); h,s,v=Color3.toHSV(nc); AtualizarTudo()
 					end
 				end)
 				table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
-					if not ativo then return end
+					if not atvRGB then return end
 					if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
-						local p=getP(i.Position.X)
-						if prop=="h" then h=p elseif prop=="s" then s=p else v=p end
-						AtualizarTudo()
+						local p=math.clamp((i.Position.X-rTrilha.AbsolutePosition.X)/rTrilha.AbsoluteSize.X,0,1)
+						local r2,g2,b2=GetRGB()
+						if cfg2.prop=="r" then r2=math.floor(p*255+0.5)
+						elseif cfg2.prop=="g" then g2=math.floor(p*255+0.5)
+						else b2=math.floor(p*255+0.5) end
+						local nc=Color3.fromRGB(r2,g2,b2); h,s,v=Color3.toHSV(nc); AtualizarTudo()
 					end
 				end))
 				table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
 					if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-						if ativo then ativo=false; Tw(bola,0.08,{Size=UDim2.new(0,bolaSize,0,bolaSize)}):Play() end
+						atvRGB=false
 					end
 				end))
-				return {trilha=trilha, bola=bola, grad=grad, setPos=setPos}
 			end
 
-			local cores = {
-				Color3.fromRGB(255,59,59),Color3.fromRGB(220,38,38),Color3.fromRGB(185,28,28),
-				Color3.fromRGB(255,100,130),Color3.fromRGB(236,72,153),Color3.fromRGB(190,24,93),
-				Color3.fromRGB(255,140,0),Color3.fromRGB(234,88,12),Color3.fromRGB(194,65,12),
-				Color3.fromRGB(255,210,0),Color3.fromRGB(234,179,8),Color3.fromRGB(161,98,7),
-				Color3.fromRGB(74,222,128),Color3.fromRGB(34,197,94),Color3.fromRGB(22,163,74),
-				Color3.fromRGB(163,230,53),Color3.fromRGB(132,204,22),Color3.fromRGB(77,124,15),
-				Color3.fromRGB(56,189,248),Color3.fromRGB(14,165,233),Color3.fromRGB(2,132,199),
-				Color3.fromRGB(34,211,238),Color3.fromRGB(6,182,212),Color3.fromRGB(8,145,178),
-				Color3.fromRGB(167,139,250),Color3.fromRGB(139,92,246),Color3.fromRGB(109,40,217),
-				Color3.fromRGB(232,121,249),Color3.fromRGB(192,38,211),Color3.fromRGB(134,25,143),
-				Color3.fromRGB(255,255,255),Color3.fromRGB(200,200,210),Color3.fromRGB(148,148,165),
-				Color3.fromRGB(80,80,100),Color3.fromRGB(30,30,45),Color3.fromRGB(0,0,0),
+			-- ── GRID DE PRESETS ──────────────────────────────────────
+			local presets = {
+				Color3.fromRGB(255,59,59),  Color3.fromRGB(255,140,0),  Color3.fromRGB(255,210,0),
+				Color3.fromRGB(74,222,128), Color3.fromRGB(56,189,248), Color3.fromRGB(167,139,250),
+				Color3.fromRGB(232,121,249),Color3.fromRGB(255,100,130),Color3.fromRGB(34,211,238),
+				Color3.fromRGB(255,255,255),Color3.fromRGB(148,148,165),Color3.fromRGB(0,0,0),
 			}
-
-			local function CriarGrid(parent, cell, gap, cols, maxH)
-				local totalRows=math.ceil(#cores/cols); local gridW=cols*(cell+gap)-gap; local gridH=totalRows*(cell+gap)-gap
-				local container
-				if maxH and gridH > maxH then
-					local gs=Instance.new("ScrollingFrame"); gs.Size=UDim2.new(0,gridW+6,0,maxH)
-					gs.CanvasSize=UDim2.new(0,0,0,gridH+4); gs.ScrollBarThickness=2; gs.ScrollBarImageColor3=C.Destaque
-					gs.BackgroundTransparency=1; gs.BorderSizePixel=0; gs.ScrollingDirection=Enum.ScrollingDirection.Y
-					gs.ZIndex=2; gs.Parent=parent; container=gs
-				else
-					container=F({Size=UDim2.new(0,gridW,0,math.min(gridH,maxH or gridH)),BackgroundTransparency=1,ZIndex=2,Parent=parent})
-				end
-				for i,cor in ipairs(cores) do
-					local col=(i-1)%cols; local row=math.floor((i-1)/cols)
-					local btn=Instance.new("TextButton"); btn.Size=UDim2.new(0,cell,0,cell)
-					btn.Position=UDim2.new(0,col*(cell+gap),0,row*(cell+gap)); btn.BackgroundColor3=cor
-					btn.Text=""; btn.AutoButtonColor=false; btn.ZIndex=3; btn.Parent=container; Cantos(btn,5)
-					local brdCell=Stroke(btn,Color3.new(0,0,0),1,0.75)
-					btn.MouseEnter:Connect(function() Tw(btn,0.1,{Size=UDim2.new(0,cell+3,0,cell+3),Position=UDim2.new(0,col*(cell+gap)-1,0,row*(cell+gap)-1)}):Play(); Tw(brdCell,0.1,{Transparency=0.15}):Play() end)
-					btn.MouseLeave:Connect(function() Tw(btn,0.1,{Size=UDim2.new(0,cell,0,cell),Position=UDim2.new(0,col*(cell+gap),0,row*(cell+gap))}):Play(); Tw(brdCell,0.1,{Transparency=0.75}):Play() end)
-					btn.MouseButton1Click:Connect(function() h,s,v=Color3.toHSV(cor); AtualizarTudo() end)
-				end
-				return container
+			local PCELL=IS_MOBILE and 18 or 18
+			local PGAP=4
+			local PCOLS=6
+			local presetY = valY + BAR_H + PAD
+			local presetHolder = F({
+				Size=UDim2.new(0,CVW,0,PCELL*2+PGAP),
+				Position=UDim2.new(0,PAD,0,presetY),
+				BackgroundTransparency=1, ZIndex=2, Parent=corpo2,
+			})
+			for i,pc in ipairs(presets) do
+				local col=(i-1)%PCOLS; local row=math.floor((i-1)/PCOLS)
+				local pb=Instance.new("TextButton")
+				pb.Size=UDim2.new(0,PCELL,0,PCELL)
+				pb.Position=UDim2.new(0,col*(PCELL+PGAP),0,row*(PCELL+PGAP))
+				pb.BackgroundColor3=pc; pb.Text=""; pb.AutoButtonColor=false
+				pb.ZIndex=3; pb.Parent=presetHolder; Cantos(pb,5)
+				local pbBrd=Stroke(pb,Color3.new(0,0,0),1,0.7)
+				pb.MouseEnter:Connect(function()
+					Tw(pb,0.08,{Size=UDim2.new(0,PCELL+4,0,PCELL+4),
+						Position=UDim2.new(0,col*(PCELL+PGAP)-2,0,row*(PCELL+PGAP)-2)}):Play()
+					Tw(pbBrd,0.08,{Transparency=0.1}):Play()
+				end)
+				pb.MouseLeave:Connect(function()
+					Tw(pb,0.08,{Size=UDim2.new(0,PCELL,0,PCELL),
+						Position=UDim2.new(0,col*(PCELL+PGAP),0,row*(PCELL+PGAP))}):Play()
+					Tw(pbBrd,0.08,{Transparency=0.7}):Play()
+				end)
+				pb.MouseButton1Click:Connect(function()
+					h,s,v=Color3.toHSV(pc); AtualizarTudo()
+				end)
 			end
 
-			if not IS_MOBILE then
-				local CELL=22; local GAP=4; local COLS=6
-				local gridContainer=CriarGrid(corpo2,CELL,GAP,COLS,PICKER_H-16)
-				gridContainer.Position=UDim2.new(0,10,0,8)
-				local rightX=COLS*(CELL+GAP)-GAP+22; local rightW=115
-				local bp=F({Size=UDim2.new(0,rightW,0,40),Position=UDim2.new(0,rightX,0,8),BackgroundColor3=corAtual,ZIndex=2,Parent=corpo2})
-				Cantos(bp,8); Stroke(bp,C.Borda,1,0.25); bigPreview_ref=bp
-				local lh=L({Size=UDim2.new(0,rightW,0,14),Position=UDim2.new(0,rightX,0,52),Text=CorParaHex(corAtual),TextColor3=C.Sub,Font=Enum.Font.GothamBold,TextSize=10,TextXAlignment=Enum.TextXAlignment.Center,ZIndex=2,Parent=corpo2})
-				RC(lh,"TextColor3","Sub"); lblHex_ref=lh
-				slH_ref=CriarSliderHSV("H",70,rightX,rightW,13,9,28,"h")
-				slS_ref=CriarSliderHSV("S",100,rightX,rightW,13,9,28,"s")
-				slV_ref=CriarSliderHSV("V",130,rightX,rightW,13,9,28,"v")
-			else
-				local CELL=26; local GAP=4; local COLS=9; local gridVisW=180
-				local gs=Instance.new("ScrollingFrame"); gs.Size=UDim2.new(0,gridVisW,0,150); gs.Position=UDim2.new(0,125,0,10)
-				gs.ScrollBarThickness=3; gs.ScrollBarImageColor3=C.Destaque; gs.BackgroundTransparency=1; gs.BorderSizePixel=0
-				gs.ScrollingDirection=Enum.ScrollingDirection.XY; gs.ZIndex=2; gs.Parent=corpo2
-				local totalRows=math.ceil(#cores/COLS); gs.CanvasSize=UDim2.new(0,COLS*(CELL+GAP)-GAP+4,0,totalRows*(CELL+GAP)-GAP+4)
-				for i,cor in ipairs(cores) do
-					local col=(i-1)%COLS; local row=math.floor((i-1)/COLS)
-					local btn=Instance.new("TextButton"); btn.Size=UDim2.new(0,CELL,0,CELL)
-					btn.Position=UDim2.new(0,col*(CELL+GAP),0,row*(CELL+GAP)); btn.BackgroundColor3=cor
-					btn.Text=""; btn.AutoButtonColor=false; btn.ZIndex=3; btn.Parent=gs; Cantos(btn,5)
-					local brdCell=Stroke(btn,Color3.new(0,0,0),1,0.75)
-					btn.MouseEnter:Connect(function() Tw(btn,0.1,{Size=UDim2.new(0,CELL+4,0,CELL+4),Position=UDim2.new(0,col*(CELL+GAP)-2,0,row*(CELL+GAP)-2)}):Play(); Tw(brdCell,0.1,{Transparency=0.2}):Play() end)
-					btn.MouseLeave:Connect(function() Tw(btn,0.1,{Size=UDim2.new(0,CELL,0,CELL),Position=UDim2.new(0,col*(CELL+GAP),0,row*(CELL+GAP))}):Play(); Tw(brdCell,0.1,{Transparency=0.75}):Play() end)
-					btn.MouseButton1Click:Connect(function() h,s,v=Color3.toHSV(cor); AtualizarTudo() end)
+			-- recalcular PICKER_H com presets
+			PICKER_H = PAD + CVH + BAR_GAP + BAR_H + BAR_GAP + BAR_H + PAD + PCELL*2+PGAP + PAD
+			AH = FH + PICKER_H + 4
+			corpo2.Size = UDim2.new(1,0,0,PICKER_H)
+
+			-- ── ATUALIZAR TUDO ───────────────────────────────────────
+			function AtualizarTudo()
+				h=math.clamp(h,0,1); s=math.clamp(s,0,1); v=math.clamp(v,0,1)
+				corAtual = Color3.fromHSV(h,s,v)
+
+				-- preview
+				preview.BackgroundColor3 = corAtual
+				bigPrev.BackgroundColor3 = corAtual
+
+				-- hex
+				local hexStr = CorParaHex(corAtual)
+				if not hexBox:IsFocused() then hexBox.Text = hexStr end
+
+				-- canvas: atualiza cor de fundo (hue puro) e gradientes
+				canvasFrame.BackgroundColor3 = Color3.fromHSV(h,1,1)
+				gradS.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h,1,1))
+				cursor.Position = UDim2.new(s,0,1-v,0)
+				cursor.BackgroundColor3 = corAtual
+
+				-- hue cursor
+				hueCursor.Position = UDim2.new(h,0,0.5,0)
+
+				-- value bar + cursor
+				valGrad.Color = ColorSequence.new(Color3.new(0,0,0), Color3.fromHSV(h,s,1))
+				valCursor.Position = UDim2.new(v,0,0.5,0)
+
+				-- sliders RGB
+				local r2,g2,b2 = GetRGB()
+				local rgbVals = {r=r2/255, g=g2/255, b=b2/255}
+				for prop,ref in pairs(rgbRefs) do
+					local p = rgbVals[prop]
+					ref.fill.Size = UDim2.new(p,0,1,0)
+					ref.bola.Position = UDim2.new(p,0,0.5,0)
 				end
-				local sliderW=105; local sliderX=10; local lblSize=10; local bolaM=16
-				local bp=F({Size=UDim2.new(0,sliderW,0,55),Position=UDim2.new(0,sliderX,0,168),BackgroundColor3=corAtual,ZIndex=2,Parent=corpo2})
-				Cantos(bp,8); Stroke(bp,C.Borda,1,0.3); bigPreview_ref=bp
-				local lh=L({Size=UDim2.new(0,sliderW,0,16),Position=UDim2.new(0,sliderX,0,150),Text=CorParaHex(corAtual),TextColor3=C.Sub,Font=Enum.Font.GothamBold,TextSize=lblSize,TextXAlignment=Enum.TextXAlignment.Center,ZIndex=2,Parent=corpo2})
-				RC(lh,"TextColor3","Sub"); lblHex_ref=lh
-				slH_ref=CriarSliderHSV("H",8,sliderX,sliderW,bolaM,lblSize,36,"h")
-				slS_ref=CriarSliderHSV("S",46,sliderX,sliderW,bolaM,lblSize,36,"s")
-				slV_ref=CriarSliderHSV("V",84,sliderX,sliderW,bolaM,lblSize,36,"v")
+
+				if callback then callback(corAtual) end
 			end
 
-			AtualizarTudo()
+			-- ── INTERAÇÃO CANVAS ─────────────────────────────────────
+			local atvCanvas = false
+			local function UpdateCanvas(px, py)
+				local ap = canvasFrame.AbsolutePosition
+				local as = canvasFrame.AbsoluteSize
+				s = math.clamp((px - ap.X) / as.X, 0, 1)
+				v = math.clamp(1 - (py - ap.Y) / as.Y, 0, 1)
+				AtualizarTudo()
+			end
+			canvasHit.InputBegan:Connect(function(i)
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					atvCanvas=true; UpdateCanvas(i.Position.X, i.Position.Y)
+					Tw(cursor,0.08,{Size=UDim2.new(0,18,0,18)}):Play()
+				end
+			end)
+			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
+				if not atvCanvas then return end
+				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
+					UpdateCanvas(i.Position.X, i.Position.Y)
+				end
+			end))
+			table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					if atvCanvas then atvCanvas=false; Tw(cursor,0.1,{Size=UDim2.new(0,14,0,14)}):Play() end
+				end
+			end))
 
+			-- ── INTERAÇÃO HUE BAR ────────────────────────────────────
+			local atvHue = false
+			local function UpdateHue(px)
+				local ap = hueTrilha.AbsolutePosition
+				local as = hueTrilha.AbsoluteSize
+				h = math.clamp((px - ap.X) / as.X, 0, 1)
+				AtualizarTudo()
+			end
+			hueHit.InputBegan:Connect(function(i)
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					atvHue=true; UpdateHue(i.Position.X)
+				end
+			end)
+			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
+				if not atvHue then return end
+				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
+					UpdateHue(i.Position.X)
+				end
+			end))
+			table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					atvHue=false
+				end
+			end))
+
+			-- ── INTERAÇÃO VALUE BAR ──────────────────────────────────
+			local atvVal = false
+			local function UpdateVal(px)
+				local ap = valTrilha.AbsolutePosition
+				local as = valTrilha.AbsoluteSize
+				v = math.clamp((px - ap.X) / as.X, 0, 1)
+				AtualizarTudo()
+			end
+			valHit.InputBegan:Connect(function(i)
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					atvVal=true; UpdateVal(i.Position.X)
+				end
+			end)
+			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
+				if not atvVal then return end
+				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
+					UpdateVal(i.Position.X)
+				end
+			end))
+			table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					atvVal=false
+				end
+			end))
+
+			-- ── HEX INPUT ────────────────────────────────────────────
+			hexBox.FocusLost:Connect(function()
+				local nc = HexParaCor(hexBox.Text)
+				if nc then h,s,v=Color3.toHSV(nc); AtualizarTudo()
+				else hexBox.Text=CorParaHex(corAtual) end
+			end)
+			hexBox.Focused:Connect(function()
+				Stroke(hexFr,C.Destaque,1,0):Play()
+			end)
+
+			-- ── ABRIR/FECHAR ─────────────────────────────────────────
 			cab.MouseButton1Click:Connect(function()
-				aberto=not aberto
-				Tw(fr,0.2,{Size=UDim2.new(1,-6,0,aberto and AH or FH)}):Play()
-				Tw(seta,0.2,{Rotation=aberto and -90 or 90}):Play()
+				aberto = not aberto
+				Tw(fr, 0.25, {Size=UDim2.new(1,-6,0,aberto and AH or FH)},
+					Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+				Tw(seta, 0.2, {Rotation=aberto and -90 or 90}):Play()
 			end)
 			fr.MouseEnter:Connect(function() if not aberto then Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end end)
 			fr.MouseLeave:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end)
+
+			AtualizarTudo()
 
 			local obj={}
 			function obj:Definir(c) corAtual=c; h,s,v=Color3.toHSV(c); AtualizarTudo() end
@@ -995,6 +1266,7 @@ function Hub.novo(nome, tema, velocidade)
 			obj.Set=obj.Definir; obj.Get=obj.Obter
 			return obj
 		end
+
 
 		function Aba:CriarSecao(titulo)
 			local fr=F({Size=UDim2.new(1,-6,0,22),BackgroundTransparency=1,LayoutOrder=PO(),Parent=pagina})
