@@ -1048,35 +1048,6 @@ function Hub.novo(nome, tema, velocidade)
 				rHit.AutoButtonColor=false; rHit.ZIndex=5; rHit.Parent=rTrilha
 
 				rgbRefs[cfg2.prop] = {trilha=rTrilha, fill=rFill, bola=rBola, hit=rHit}
-
-				local atvRGB = false
-				rHit.InputBegan:Connect(function(i)
-					if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-						atvRGB=true
-						local p=math.clamp((i.Position.X-rTrilha.AbsolutePosition.X)/rTrilha.AbsoluteSize.X,0,1)
-						local r2,g2,b2=GetRGB()
-						if cfg2.prop=="r" then r2=math.floor(p*255+0.5)
-						elseif cfg2.prop=="g" then g2=math.floor(p*255+0.5)
-						else b2=math.floor(p*255+0.5) end
-						local nc=Color3.fromRGB(r2,g2,b2); h,s,v=Color3.toHSV(nc); AtualizarTudo()
-					end
-				end)
-				table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
-					if not atvRGB then return end
-					if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
-						local p=math.clamp((i.Position.X-rTrilha.AbsolutePosition.X)/rTrilha.AbsoluteSize.X,0,1)
-						local r2,g2,b2=GetRGB()
-						if cfg2.prop=="r" then r2=math.floor(p*255+0.5)
-						elseif cfg2.prop=="g" then g2=math.floor(p*255+0.5)
-						else b2=math.floor(p*255+0.5) end
-						local nc=Color3.fromRGB(r2,g2,b2); h,s,v=Color3.toHSV(nc); AtualizarTudo()
-					end
-				end))
-				table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
-					if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-						atvRGB=false
-					end
-				end))
 			end
 
 			-- ── GRID DE PRESETS ──────────────────────────────────────
@@ -1127,29 +1098,17 @@ function Hub.novo(nome, tema, velocidade)
 			function AtualizarTudo()
 				h=math.clamp(h,0,1); s=math.clamp(s,0,1); v=math.clamp(v,0,1)
 				corAtual = Color3.fromHSV(h,s,v)
-
-				-- preview
 				preview.BackgroundColor3 = corAtual
 				bigPrev.BackgroundColor3 = corAtual
-
-				-- hex
 				local hexStr = CorParaHex(corAtual)
 				if not hexBox:IsFocused() then hexBox.Text = hexStr end
-
-				-- canvas: atualiza cor de fundo (hue puro) e gradientes
 				canvasFrame.BackgroundColor3 = Color3.fromHSV(h,1,1)
 				gradS.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h,1,1))
 				cursor.Position = UDim2.new(s,0,1-v,0)
 				cursor.BackgroundColor3 = corAtual
-
-				-- hue cursor
 				hueCursor.Position = UDim2.new(h,0,0.5,0)
-
-				-- value bar + cursor
 				valGrad.Color = ColorSequence.new(Color3.new(0,0,0), Color3.fromHSV(h,s,1))
 				valCursor.Position = UDim2.new(v,0,0.5,0)
-
-				-- sliders RGB
 				local r2,g2,b2 = GetRGB()
 				local rgbVals = {r=r2/255, g=g2/255, b=b2/255}
 				for prop,ref in pairs(rgbRefs) do
@@ -1157,84 +1116,92 @@ function Hub.novo(nome, tema, velocidade)
 					ref.fill.Size = UDim2.new(p,0,1,0)
 					ref.bola.Position = UDim2.new(p,0,0.5,0)
 				end
-
 				if callback then callback(corAtual) end
 			end
 
-			-- ── INTERAÇÃO CANVAS ─────────────────────────────────────
-			local atvCanvas = false
-			local function UpdateCanvas(px, py)
-				local ap = canvasFrame.AbsolutePosition
-				local as = canvasFrame.AbsoluteSize
-				s = math.clamp((px - ap.X) / as.X, 0, 1)
-				v = math.clamp(1 - (py - ap.Y) / as.Y, 0, 1)
-				AtualizarTudo()
+			-- ── ESTADO DE DRAG UNIFICADO ─────────────────────────────
+			-- "canvas" | "hue" | "val" | "r" | "g" | "b" | nil
+			local dragAtivo = nil
+
+			local function GetP1D(px, obj)
+				return math.clamp((px - obj.AbsolutePosition.X) / obj.AbsoluteSize.X, 0, 1)
 			end
-			canvasHit.InputBegan:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-					atvCanvas=true; UpdateCanvas(i.Position.X, i.Position.Y)
+			local function GetP2D(px, py, obj)
+				local sx = math.clamp((px - obj.AbsolutePosition.X) / obj.AbsoluteSize.X, 0, 1)
+				local sy = math.clamp((py - obj.AbsolutePosition.Y) / obj.AbsoluteSize.Y, 0, 1)
+				return sx, sy
+			end
+
+			local function AplicarDrag(px, py)
+				if dragAtivo == "canvas" then
+					s, v = GetP2D(px, py, canvasFrame)
+					v = 1 - v
+					AtualizarTudo()
+				elseif dragAtivo == "hue" then
+					h = GetP1D(px, hueTrilha)
+					AtualizarTudo()
+				elseif dragAtivo == "val" then
+					v = GetP1D(px, valTrilha)
+					AtualizarTudo()
+				elseif dragAtivo == "r" or dragAtivo == "g" or dragAtivo == "b" then
+					local ref = rgbRefs[dragAtivo]
+					local p = GetP1D(px, ref.trilha)
+					local r2,g2,b2 = GetRGB()
+					if dragAtivo=="r" then r2=math.floor(p*255+0.5)
+					elseif dragAtivo=="g" then g2=math.floor(p*255+0.5)
+					else b2=math.floor(p*255+0.5) end
+					local nc = Color3.fromRGB(r2,g2,b2)
+					h,s,v = Color3.toHSV(nc)
+					AtualizarTudo()
+				end
+			end
+
+			-- InputBegan nos elementos (inicia drag)
+			local function IniciarDrag(tipo, px, py)
+				dragAtivo = tipo
+				AplicarDrag(px, py)
+				if tipo == "canvas" then
 					Tw(cursor,0.08,{Size=UDim2.new(0,18,0,18)}):Play()
 				end
-			end)
-			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
-				if not atvCanvas then return end
-				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
-					UpdateCanvas(i.Position.X, i.Position.Y)
-				end
-			end))
-			table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-					if atvCanvas then atvCanvas=false; Tw(cursor,0.1,{Size=UDim2.new(0,14,0,14)}):Play() end
-				end
-			end))
-
-			-- ── INTERAÇÃO HUE BAR ────────────────────────────────────
-			local atvHue = false
-			local function UpdateHue(px)
-				local ap = hueTrilha.AbsolutePosition
-				local as = hueTrilha.AbsoluteSize
-				h = math.clamp((px - ap.X) / as.X, 0, 1)
-				AtualizarTudo()
 			end
+
+			canvasHit.InputBegan:Connect(function(i)
+				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+					IniciarDrag("canvas", i.Position.X, i.Position.Y)
+				end
+			end)
 			hueHit.InputBegan:Connect(function(i)
 				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-					atvHue=true; UpdateHue(i.Position.X)
+					IniciarDrag("hue", i.Position.X, i.Position.Y)
 				end
 			end)
-			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
-				if not atvHue then return end
-				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
-					UpdateHue(i.Position.X)
-				end
-			end))
-			table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-					atvHue=false
-				end
-			end))
-
-			-- ── INTERAÇÃO VALUE BAR ──────────────────────────────────
-			local atvVal = false
-			local function UpdateVal(px)
-				local ap = valTrilha.AbsolutePosition
-				local as = valTrilha.AbsoluteSize
-				v = math.clamp((px - ap.X) / as.X, 0, 1)
-				AtualizarTudo()
-			end
 			valHit.InputBegan:Connect(function(i)
 				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-					atvVal=true; UpdateVal(i.Position.X)
+					IniciarDrag("val", i.Position.X, i.Position.Y)
 				end
 			end)
+			for prop, ref in pairs(rgbRefs) do
+				local p2 = prop
+				ref.hit.InputBegan:Connect(function(i)
+					if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+						IniciarDrag(p2, i.Position.X, i.Position.Y)
+					end
+				end)
+			end
+
+			-- InputChanged e InputEnded globais (único par para tudo)
 			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
-				if not atvVal then return end
+				if dragAtivo == nil then return end
 				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
-					UpdateVal(i.Position.X)
+					AplicarDrag(i.Position.X, i.Position.Y)
 				end
 			end))
 			table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
 				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-					atvVal=false
+					if dragAtivo == "canvas" then
+						Tw(cursor,0.1,{Size=UDim2.new(0,14,0,14)}):Play()
+					end
+					dragAtivo = nil
 				end
 			end))
 
