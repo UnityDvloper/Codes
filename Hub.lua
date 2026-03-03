@@ -522,7 +522,7 @@ function Hub.novo(nome, tema, velocidade)
 			lblMsg.Position    = UDim2.new(0, txtX, 0, topPad + altTit + gap)
 
 			Tw(card, 0.35, {Position=UDim2.new(0,0,0,0)},
-				Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+			Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
 
 			task.delay(0.1, function()
 				if not ic.Parent then return end
@@ -530,7 +530,7 @@ function Hub.novo(nome, tema, velocidade)
 				task.delay(0.12, function()
 					if not ic.Parent then return end
 					Tw(ic, 0.18, {Size=UDim2.new(0,icSize,0,icSize)},
-						Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+					Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
 				end)
 			end)
 
@@ -631,7 +631,7 @@ function Hub.novo(nome, tema, velocidade)
 				if t.ind then
 					t.ind.BackgroundTransparency = 0
 					Tw(t.ind, 0.22, {Size=UDim2.new(0,3,0.7,0)},
-						Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+					Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
 				end
 				if t.glow then
 					t.glow.BackgroundTransparency = 0.82
@@ -994,8 +994,8 @@ function Hub.novo(nome, tema, velocidade)
 			local rgbRefs = {}
 			local function GetRGB()
 				return math.floor(corAtual.R*255+0.5),
-					   math.floor(corAtual.G*255+0.5),
-					   math.floor(corAtual.B*255+0.5)
+				math.floor(corAtual.G*255+0.5),
+				math.floor(corAtual.B*255+0.5)
 			end
 			for i,rd in ipairs(rgbData) do
 				local ry = PAD+78+(i-1)*26
@@ -1180,10 +1180,10 @@ function Hub.novo(nome, tema, velocidade)
 				if aberto then
 					pickerCorpo.Visible=true
 					Tw(fr,0.28,{Size=UDim2.new(1,-6,0,AH)},
-						Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
+					Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
 				else
 					Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},
-						Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
+					Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
 					task.delay(0.2,function()
 						if not aberto then pickerCorpo.Visible=false end
 					end)
@@ -1335,7 +1335,7 @@ function Hub.novo(nome, tema, velocidade)
 			fr.InputChanged:Connect(function(i)
 				if i.UserInputType == Enum.UserInputType.Touch and touchStart then
 					if math.abs(i.Position.X-touchStart.X)>THRESH
-					or math.abs(i.Position.Y-touchStart.Y)>THRESH then
+						or math.abs(i.Position.Y-touchStart.Y)>THRESH then
 						touchDrag = true
 					end
 				end
@@ -1903,7 +1903,684 @@ function Hub.novo(nome, tema, velocidade)
 			obj.Set=obj.Definir; obj.Get=obj.Obter
 			return obj
 		end
+		
+		-- ╔══════════════════════════════════════════════════════════╗
+		-- ║  CriarPerfilJogador v4.0                                ║
+		-- ║  + Visual premium redesenhado                           ║
+		-- ║  + Idade da conta: anos/meses/dias/horas (sem min/seg)  ║
+		-- ║  + Time atualiza automaticamente via Changed            ║
+		-- ║  + Seletor de jogador integrado                         ║
+		-- ╚══════════════════════════════════════════════════════════╝
+		function Aba:CriarPerfilJogador(jogadorInicial)
+			jogadorInicial = jogadorInicial or game.Players.LocalPlayer
 
+			local Players  = game:GetService("Players")
+			local AVATAR_S = IS_MOBILE and 72 or 68
+			local IC_S     = IS_MOBILE and 11 or 10
+
+			-- alturas fixas dos blocos
+			local FH_SEL    = IS_MOBILE and 34 or 30   -- seletor
+			local FH_HERO   = IS_MOBILE and 88 or 84   -- bloco avatar + nome
+			local FH_GRID   = IS_MOBILE and 120 or 108 -- grid de 4 infos
+			local FH_TEAM   = IS_MOBILE and 36 or 32   -- linha do time
+			local FH_SESS   = IS_MOBILE and 36 or 32   -- linha da sessao
+			local PAD_V     = 8
+			local CARD_H    = FH_SEL + PAD_V + FH_HERO + PAD_V + FH_GRID + PAD_V + FH_TEAM + 4 + FH_SESS + PAD_V
+
+			local jogadorAtual  = jogadorInicial
+			local sessoesInicio = {}
+			sessoesInicio[jogadorInicial.UserId] = os.time()
+			local teamConn = nil
+
+			-- ── card principal ────────────────────────────────────
+			local fr = F({
+				Size             = UDim2.new(1, -6, 0, CARD_H),
+				BackgroundColor3 = C.Cartao,
+				ClipsDescendants = false,
+				LayoutOrder      = PO(),
+				Parent           = pagina,
+			})
+			Cantos(fr, 12)
+			local frBrd = Stroke(fr, C.Borda, 1, 0.3)
+			RC(fr,    "BackgroundColor3", "Cartao")
+			RC(frBrd, "Color",            "Borda")
+
+			-- linha colorida no topo do card
+			local topLine = F({
+				Size             = UDim2.new(0.6, 0, 0, 2),
+				Position         = UDim2.new(0.2, 0, 0, 0),
+				BackgroundColor3 = C.Destaque,
+				ZIndex           = 3,
+				Parent           = fr,
+			})
+			Cantos(topLine, 99)
+			RC(topLine, "BackgroundColor3", "Destaque")
+			local topLineGrad = Grad(topLine, C.DestaqueV, C.Destaque, 0)
+			RegGrad(topLineGrad, "DestaqueV", "Destaque", 0)
+
+			-- ── seletor de jogador ────────────────────────────────
+			local selFr = F({
+				Size             = UDim2.new(1, -16, 0, FH_SEL),
+				Position         = UDim2.new(0, 8, 0, 6),
+				BackgroundColor3 = C.Item,
+				ZIndex           = 3,
+				Parent           = fr,
+			})
+			Cantos(selFr, 8)
+			RC(selFr, "BackgroundColor3", "Item")
+			local selBrd = Stroke(selFr, C.Borda, 1, 0.5)
+			RC(selBrd, "Color", "Borda")
+
+			L({
+				Size           = UDim2.new(0, 60, 1, 0),
+				Position       = UDim2.new(0, 10, 0, 0),
+				Text           = "JOGADOR",
+				TextColor3     = C.Fraco,
+				Font           = Enum.Font.GothamBold,
+				TextSize       = 8,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex         = 4,
+				Parent         = selFr,
+			})
+
+			local selLbl = L({
+				Size           = UDim2.new(1, -90, 1, 0),
+				Position       = UDim2.new(0, 72, 0, 0),
+				Text           = jogadorInicial.Name,
+				TextColor3     = C.Destaque,
+				Font           = Enum.Font.GothamBold,
+				TextSize       = IC_S,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate   = Enum.TextTruncate.AtEnd,
+				ZIndex         = 4,
+				Parent         = selFr,
+			})
+			RC(selLbl, "TextColor3", "Destaque")
+
+			-- badge contagem de jogadores
+			local cntBadge = F({
+				Size             = UDim2.new(0, 18, 0, 14),
+				Position         = UDim2.new(1, -38, 0.5, -7),
+				BackgroundColor3 = C.Fraco,
+				ZIndex           = 4,
+				Parent           = selFr,
+			})
+			Cantos(cntBadge, 4)
+			RC(cntBadge, "BackgroundColor3", "Fraco")
+			local cntLbl = L({
+				Size=UDim2.new(1,0,1,0), Text="1",
+				TextColor3=C.Sub, Font=Enum.Font.GothamBold,
+				TextSize=8, ZIndex=5, Parent=cntBadge,
+			})
+
+			local selSeta = L({
+				Size       = UDim2.new(0, 18, 1, 0),
+				Position   = UDim2.new(1, -20, 0, 0),
+				Text       = "v",
+				TextColor3 = C.Fraco,
+				Font       = Enum.Font.GothamBold,
+				TextSize   = 9,
+				ZIndex     = 4,
+				Parent     = selFr,
+			})
+			RC(selSeta, "TextColor3", "Fraco")
+
+			-- ── dropdown ──────────────────────────────────────────
+			local dropAberto  = false
+			local DROP_ITEM_H = IS_MOBILE and 34 or 28
+			local DROP_GAP    = 3
+			local DROP_PAD    = 6
+			local DROP_MAX    = 4
+
+			local dropFr = F({
+				Size             = UDim2.new(1, -16, 0, 0),
+				Position         = UDim2.new(0, 8, 0, FH_SEL + 10),
+				BackgroundColor3 = C.Item,
+				ClipsDescendants = true,
+				ZIndex           = 20,
+				Visible          = false,
+				Parent           = fr,
+			})
+			Cantos(dropFr, 8)
+			Stroke(dropFr, C.Destaque, 1, 0.55)
+
+			local dropScroll = Instance.new("ScrollingFrame")
+			dropScroll.Size                   = UDim2.new(1,0,1,0)
+			dropScroll.CanvasSize             = UDim2.new(0,0,0,0)
+			dropScroll.ScrollBarThickness     = IS_MOBILE and 0 or 2
+			dropScroll.ScrollBarImageColor3   = C.Destaque
+			dropScroll.BackgroundTransparency = 1
+			dropScroll.BorderSizePixel        = 0
+			dropScroll.ScrollingDirection     = Enum.ScrollingDirection.Y
+			dropScroll.ZIndex                 = 21
+			dropScroll.Parent                 = dropFr
+			Pad(dropScroll, DROP_PAD, DROP_PAD, DROP_PAD, DROP_PAD)
+			local dropLayout = Instance.new("UIListLayout", dropScroll)
+			dropLayout.Padding   = UDim.new(0, DROP_GAP)
+			dropLayout.SortOrder = Enum.SortOrder.Name
+
+			local function CalcDropAlt(qtd)
+				return math.min(qtd, DROP_MAX) * (DROP_ITEM_H + DROP_GAP) + DROP_PAD * 2
+			end
+
+			local function AbrirDrop()
+				dropAberto     = true
+				dropFr.Visible = true
+				local alt      = CalcDropAlt(#Players:GetPlayers())
+				dropFr.Size    = UDim2.new(1,-16,0,0)
+				fr.Size        = UDim2.new(1,-6,0,CARD_H + alt + 4)
+				Tw(dropFr,0.22,{Size=UDim2.new(1,-16,0,alt)},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
+				Tw(selSeta,0.18,{Rotation=180}):Play()
+				Tw(selBrd,0.15,{Color=C.Destaque,Transparency=0.2}):Play()
+			end
+
+			local function FecharDrop()
+				dropAberto = false
+				Tw(dropFr,0.18,{Size=UDim2.new(1,-16,0,0)},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
+				Tw(selSeta,0.18,{Rotation=0}):Play()
+				Tw(selBrd,0.15,{Color=C.Borda,Transparency=0.5}):Play()
+				task.delay(0.2, function()
+					if not dropAberto then
+						dropFr.Visible = false
+						fr.Size = UDim2.new(1,-6,0,CARD_H)
+					end
+				end)
+			end
+
+			-- ── bloco hero (avatar + nome) ────────────────────────
+			local heroY = FH_SEL + PAD_V + 4
+			local heroFr = F({
+				Size             = UDim2.new(1,-16,0,FH_HERO),
+				Position         = UDim2.new(0,8,0,heroY),
+				BackgroundColor3 = C.Item,
+				ZIndex           = 2,
+				Parent           = fr,
+			})
+			Cantos(heroFr, 10)
+			RC(heroFr, "BackgroundColor3", "Item")
+
+			-- gradiente interno no hero
+			local heroGrad = Instance.new("UIGradient")
+			heroGrad.Color = ColorSequence.new(
+				Color3.fromRGB(255,255,255), Color3.fromRGB(200,200,200)
+			)
+			heroGrad.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.92),
+				NumberSequenceKeypoint.new(1, 0.97),
+			})
+			heroGrad.Rotation = 135
+			heroGrad.Parent   = heroFr
+
+			-- glow atras do avatar
+			local avatarGlow = F({
+				Size             = UDim2.new(0, AVATAR_S+18, 0, AVATAR_S+18),
+				Position         = UDim2.new(0, (FH_HERO-AVATAR_S)/2 - 9, 0.5, -(AVATAR_S+18)/2),
+				BackgroundColor3 = C.Destaque,
+				BackgroundTransparency = 0.75,
+				ZIndex           = 2,
+				Parent           = heroFr,
+			})
+			Cantos(avatarGlow, 99)
+			RC(avatarGlow, "BackgroundColor3", "Destaque")
+
+			local avatarFr = F({
+				Size             = UDim2.new(0, AVATAR_S, 0, AVATAR_S),
+				Position         = UDim2.new(0, (FH_HERO-AVATAR_S)/2, 0.5, -AVATAR_S/2),
+				BackgroundColor3 = C.Cartao,
+				ZIndex           = 3,
+				Parent           = heroFr,
+			})
+			Cantos(avatarFr, 10)
+			local avatarBrd = Stroke(avatarFr, C.Destaque, 2, 0.3)
+			RC(avatarFr,  "BackgroundColor3", "Cartao")
+			RC(avatarBrd, "Color",            "Destaque")
+
+			local avatarImg = Instance.new("ImageLabel")
+			avatarImg.Size                   = UDim2.new(1,0,1,0)
+			avatarImg.BackgroundTransparency = 1
+			avatarImg.ZIndex                 = 4
+			avatarImg.Image                  = ""
+			avatarImg.ScaleType              = Enum.ScaleType.Fit
+			avatarImg.Parent                 = avatarFr
+			Cantos(avatarImg, 10)
+
+			local placeholderLbl = L({
+				Size=UDim2.new(1,0,1,0), Text="?",
+				TextSize=IS_MOBILE and 24 or 22,
+				Font=Enum.Font.GothamBold,
+				TextColor3=C.Fraco, ZIndex=4, Parent=avatarFr,
+			})
+			RC(placeholderLbl, "TextColor3", "Fraco")
+
+			-- textos ao lado do avatar
+			local TX = AVATAR_S + (FH_HERO-AVATAR_S)/2 + 10
+
+			local lblNomeUser = L({
+				Size           = UDim2.new(1,-(TX+10),0,18),
+				Position       = UDim2.new(0,TX,0,12),
+				Text           = "@"..jogadorInicial.Name,
+				TextColor3     = C.Destaque,
+				Font           = Enum.Font.GothamBold,
+				TextSize       = 13,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate   = Enum.TextTruncate.AtEnd,
+				ZIndex         = 3,
+				Parent         = heroFr,
+			})
+			RC(lblNomeUser, "TextColor3", "Destaque")
+
+			local lblDisplay = L({
+				Size           = UDim2.new(1,-(TX+10),0,14),
+				Position       = UDim2.new(0,TX,0,30),
+				Text           = jogadorInicial.DisplayName,
+				TextColor3     = C.Texto,
+				Font           = Enum.Font.Gotham,
+				TextSize       = 11,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate   = Enum.TextTruncate.AtEnd,
+				ZIndex         = 3,
+				Parent         = heroFr,
+			})
+			RC(lblDisplay, "TextColor3", "Texto")
+
+			-- chip de ID
+			local idChip = F({
+				Size             = UDim2.new(0,0,0,16),
+				AutomaticSize    = Enum.AutomaticSize.X,
+				Position         = UDim2.new(0,TX,0,50),
+				BackgroundColor3 = C.Fraco,
+				ZIndex           = 3,
+				Parent           = heroFr,
+			})
+			Cantos(idChip, 4)
+			RC(idChip, "BackgroundColor3", "Fraco")
+			Pad(idChip,3,3,6,6)
+			local idChipLy = Instance.new("UIListLayout",idChip)
+			idChipLy.FillDirection=Enum.FillDirection.Horizontal
+			idChipLy.VerticalAlignment=Enum.VerticalAlignment.Center
+			idChipLy.Padding=UDim.new(0,3)
+			L({Size=UDim2.new(0,0,0,10),AutomaticSize=Enum.AutomaticSize.X,
+				Text="ID",TextColor3=C.Fraco,Font=Enum.Font.GothamBold,TextSize=8,ZIndex=4,Parent=idChip})
+			local lblId = L({Size=UDim2.new(0,0,0,10),AutomaticSize=Enum.AutomaticSize.X,
+				Text=tostring(jogadorInicial.UserId),TextColor3=C.Sub,Font=Enum.Font.GothamBold,
+				TextSize=8,ZIndex=4,Parent=idChip})
+			RC(lblId,"TextColor3","Sub")
+
+			-- ── grid 2x2 de infos ─────────────────────────────────
+			local gridY = heroY + FH_HERO + PAD_V
+			local gridFr = F({
+				Size             = UDim2.new(1,-16,0,FH_GRID),
+				Position         = UDim2.new(0,8,0,gridY),
+				BackgroundTransparency = 1,
+				ZIndex           = 2,
+				Parent           = fr,
+			})
+
+			local gridLayout = Instance.new("UIGridLayout", gridFr)
+			gridLayout.CellSize        = UDim2.new(0.5,-4,0.5,-4)
+			gridLayout.CellPadding     = UDim2.new(0,4,0,4)
+			gridLayout.SortOrder       = Enum.SortOrder.LayoutOrder
+			gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			gridLayout.VerticalAlignment   = Enum.VerticalAlignment.Top
+
+			local function CriarCelula(labelTxt, valorInicial, ordem)
+				local cell = F({
+					BackgroundColor3 = C.Item,
+					LayoutOrder      = ordem,
+					ZIndex           = 2,
+					Parent           = gridFr,
+				})
+				Cantos(cell, 8)
+				RC(cell, "BackgroundColor3", "Item")
+				local cellBrd = Stroke(cell, C.Borda, 1, 0.55)
+				RC(cellBrd, "Color", "Borda")
+				Pad(cell,8,6,10,8)
+
+				-- label pequeno no topo
+				L({
+					Size           = UDim2.new(1,0,0,10),
+					Text           = labelTxt,
+					TextColor3     = C.Fraco,
+					Font           = Enum.Font.GothamBold,
+					TextSize       = 8,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					ZIndex         = 3,
+					Parent         = cell,
+				})
+
+				-- valor em destaque
+				local val = L({
+					Size           = UDim2.new(1,0,1,-14),
+					Position       = UDim2.new(0,0,0,12),
+					Text           = valorInicial,
+					TextColor3     = C.Texto,
+					Font           = Enum.Font.GothamBold,
+					TextSize       = IS_MOBILE and 11 or 10,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					TextWrapped    = true,
+					ZIndex         = 3,
+					Parent         = cell,
+				})
+				RC(val, "TextColor3", "Texto")
+
+				-- linha decorativa no rodape da celula
+				local cellLine = F({
+					Size             = UDim2.new(0.4,0,0,2),
+					Position         = UDim2.new(0,0,1,-2),
+					BackgroundColor3 = C.Destaque,
+					ZIndex           = 3,
+					Parent           = cell,
+				})
+				Cantos(cellLine,99)
+				RC(cellLine,"BackgroundColor3","Destaque")
+
+				return val
+			end
+
+			-- helpers de formatacao
+			local function CalcDataCriacao(diasAtras)
+				local d = os.date("*t", os.time() - diasAtras * 86400)
+				return string.format("%02d/%02d/%04d", d.day, d.month, d.year)
+			end
+
+			local function FormatarIdadeConta(diasAtras)
+				local seg  = diasAtras * 86400
+				local anos  = math.floor(seg / 31536000); seg = seg % 31536000
+				local meses = math.floor(seg / 2592000);  seg = seg % 2592000
+				local dias  = math.floor(seg / 86400);    seg = seg % 86400
+				local horas = math.floor(seg / 3600)
+
+				local partes = {}
+				if anos  > 0 then table.insert(partes, anos.."a")  end
+				if meses > 0 then table.insert(partes, meses.."m") end
+				if dias  > 0 then table.insert(partes, dias.."d")  end
+				if horas > 0 then table.insert(partes, horas.."h") end
+				if #partes == 0 then return "Menos de 1h" end
+				return table.concat(partes, " ")
+			end
+
+			local function FormatarSessao(seg)
+				local h2 = math.floor(seg/3600)
+				local m2 = math.floor((seg%3600)/60)
+				local s2 = seg%60
+				if h2>0 then return string.format("%dh %02dm %02ds",h2,m2,s2)
+				else return string.format("%02dm %02ds",m2,s2) end
+			end
+
+			local lblCriado = CriarCelula("CRIADO EM",    CalcDataCriacao(jogadorInicial.AccountAge), 1)
+			local lblIdade  = CriarCelula("IDADE DA CONTA", FormatarIdadeConta(jogadorInicial.AccountAge), 2)
+			local lblSessao = CriarCelula("SESSAO ATUAL", "00m 00s", 3)
+			local lblJogos  = CriarCelula("STATUS",       "Online", 4)
+
+			-- ── linha do time ─────────────────────────────────────
+			local teamY = gridY + FH_GRID + PAD_V
+
+			local teamFr = F({
+				Size             = UDim2.new(1,-16,0,FH_TEAM),
+				Position         = UDim2.new(0,8,0,teamY),
+				BackgroundColor3 = C.Item,
+				ZIndex           = 2,
+				Parent           = fr,
+			})
+			Cantos(teamFr, 8)
+			RC(teamFr, "BackgroundColor3", "Item")
+			Stroke(teamFr, C.Borda, 1, 0.55)
+			Pad(teamFr,0,0,12,8)
+
+			local teamInner = Instance.new("UIListLayout",teamFr)
+			teamInner.FillDirection     = Enum.FillDirection.Horizontal
+			teamInner.VerticalAlignment = Enum.VerticalAlignment.Center
+			teamInner.Padding           = UDim.new(0,8)
+
+			-- bolinha colorida com a cor do time
+			local teamDot = F({
+				Size             = UDim2.new(0,10,0,10),
+				BackgroundColor3 = C.Fraco,
+				ZIndex           = 3,
+				Parent           = teamFr,
+			})
+			Cantos(teamDot,99)
+
+			L({Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,
+				Text="TIME:",TextColor3=C.Fraco,Font=Enum.Font.GothamBold,
+				TextSize=8,ZIndex=3,Parent=teamFr})
+
+			local lblTeam = L({
+				Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,
+				Text="Sem time",
+				TextColor3=C.Sub,Font=Enum.Font.GothamBold,
+				TextSize=IC_S,ZIndex=3,Parent=teamFr,
+			})
+			RC(lblTeam,"TextColor3","Sub")
+
+			-- ── linha de sessao (barra de progresso visual) ───────
+			local sessY = teamY + FH_TEAM + 4
+
+			local sessFr = F({
+				Size             = UDim2.new(1,-16,0,FH_SESS),
+				Position         = UDim2.new(0,8,0,sessY),
+				BackgroundColor3 = C.Item,
+				ZIndex           = 2,
+				Parent           = fr,
+			})
+			Cantos(sessFr,8)
+			RC(sessFr,"BackgroundColor3","Item")
+			Stroke(sessFr,C.Borda,1,0.55)
+			Pad(sessFr,0,0,12,8)
+
+			local sessInner = Instance.new("UIListLayout",sessFr)
+			sessInner.FillDirection     = Enum.FillDirection.Horizontal
+			sessInner.VerticalAlignment = Enum.VerticalAlignment.Center
+			sessInner.Padding           = UDim.new(0,8)
+
+			-- icone de relogio em texto
+			local clockIco = L({
+				Size=UDim2.new(0,12,0,12),
+				Text="O",TextColor3=C.Destaque,
+				Font=Enum.Font.GothamBold,TextSize=9,
+				ZIndex=3,Parent=sessFr,
+			})
+			RC(clockIco,"TextColor3","Destaque")
+
+			L({Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,
+				Text="SESSAO:",TextColor3=C.Fraco,Font=Enum.Font.GothamBold,
+				TextSize=8,ZIndex=3,Parent=sessFr})
+
+			local sessValLbl = L({
+				Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,
+				Text="00m 00s",
+				TextColor3=C.Destaque,Font=Enum.Font.GothamBold,
+				TextSize=IC_S,ZIndex=3,Parent=sessFr,
+			})
+			RC(sessValLbl,"TextColor3","Destaque")
+
+			-- ── funcoes auxiliares ────────────────────────────────
+			local function AtualizarTeam(p)
+				if teamConn then
+					pcall(function() teamConn:Disconnect() end)
+					teamConn = nil
+				end
+
+				local function SincTeam()
+					local ok, team = pcall(function() return p.Team end)
+					if ok and team then
+						lblTeam.Text          = team.Name
+						lblTeam.TextColor3    = team.TeamColor.Color
+						teamDot.BackgroundColor3 = team.TeamColor.Color
+					else
+						lblTeam.Text          = "Sem time"
+						lblTeam.TextColor3    = C.Sub
+						teamDot.BackgroundColor3 = C.Fraco
+					end
+				end
+
+				SincTeam()
+
+				-- escuta mudancas de time em tempo real
+				local ok2, conn = pcall(function()
+					return p:GetPropertyChangedSignal("Team"):Connect(SincTeam)
+				end)
+				if ok2 and conn then
+					teamConn = conn
+					table.insert(hubSelf._conexoes, conn)
+				end
+			end
+
+			local function CarregarAvatar(p)
+				if not p or not p.Parent then return end
+				placeholderLbl.Visible = true
+				avatarImg.Image = "rbxthumb://type=AvatarBust&id="..p.UserId.."&w=150&h=150"
+				task.delay(1, function()
+					if avatarImg and avatarImg.Parent then
+						placeholderLbl.Visible = false
+					end
+				end)
+			end
+
+			local function AtualizarCard(p)
+				jogadorAtual     = p
+				selLbl.Text      = p.Name
+				lblNomeUser.Text = "@"..p.Name
+				lblDisplay.Text  = p.DisplayName
+				lblId.Text       = tostring(p.UserId)
+				lblCriado.Text   = CalcDataCriacao(p.AccountAge)
+				lblIdade.Text    = FormatarIdadeConta(p.AccountAge)
+				if not sessoesInicio[p.UserId] then
+					sessoesInicio[p.UserId] = os.time()
+				end
+				AtualizarTeam(p)
+				CarregarAvatar(p)
+			end
+
+			-- ── construir itens do dropdown ───────────────────────
+			local function ConstruirItens()
+				for _,ch in ipairs(dropScroll:GetChildren()) do
+					if ch:IsA("TextButton") then ch:Destroy() end
+				end
+				local lista = Players:GetPlayers()
+				cntLbl.Text = tostring(#lista)
+
+				for _,p in ipairs(lista) do
+					local isAtivo = (p == jogadorAtual)
+					local it = Instance.new("TextButton")
+					it.Size             = UDim2.new(1,0,0,DROP_ITEM_H)
+					it.BackgroundColor3 = isAtivo and C.BotaoFundo or C.Item
+					it.Text             = ""
+					it.AutoButtonColor  = false
+					it.Name             = p.Name
+					it.ZIndex           = 22
+					it.Parent           = dropScroll
+					Cantos(it,8)
+					local itBrd = Stroke(it, isAtivo and C.Destaque or C.Borda, 1, isAtivo and 0.3 or 0.7)
+
+					-- miniatura da cabeca
+					local mini = Instance.new("ImageLabel")
+					mini.Size                   = UDim2.new(0,DROP_ITEM_H-8,0,DROP_ITEM_H-8)
+					mini.Position               = UDim2.new(0,4,0.5,-(DROP_ITEM_H-8)/2)
+					mini.BackgroundTransparency = 1
+					mini.Image                  = "rbxthumb://type=AvatarHeadShot&id="..p.UserId.."&w=48&h=48"
+					mini.ScaleType              = Enum.ScaleType.Fit
+					mini.ZIndex                 = 23
+					mini.Parent                 = it
+					Cantos(mini,4)
+
+					-- borda colorida do mini se for o jogador ativo
+					if isAtivo then Stroke(mini, C.Destaque, 1, 0.3) end
+
+					L({
+						Size           = UDim2.new(1,-(DROP_ITEM_H+10),1,0),
+						Position       = UDim2.new(0,DROP_ITEM_H+6,0,0),
+						Text           = p.Name,
+						TextColor3     = isAtivo and C.BotaoTexto or C.Texto,
+						Font           = isAtivo and Enum.Font.GothamBold or Enum.Font.Gotham,
+						TextSize       = IS_MOBILE and 11 or 11,
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextTruncate   = Enum.TextTruncate.AtEnd,
+						ZIndex         = 23,
+						Parent         = it,
+					})
+
+					it.MouseEnter:Connect(function()
+						if p~=jogadorAtual then Tw(it,0.1,{BackgroundColor3=C.ItemHover}):Play() end
+					end)
+					it.MouseLeave:Connect(function()
+						if p~=jogadorAtual then Tw(it,0.1,{BackgroundColor3=C.Item}):Play() end
+					end)
+					it.MouseButton1Click:Connect(function()
+						AtualizarCard(p); FecharDrop()
+						task.delay(0.05, ConstruirItens)
+					end)
+				end
+				dropScroll.CanvasSize = UDim2.new(0,0,0,dropLayout.AbsoluteContentSize.Y+DROP_PAD*2)
+			end
+
+			ConstruirItens()
+
+			-- botao invisivel do seletor
+			local selBtn = Instance.new("TextButton")
+			selBtn.Size               = UDim2.new(1,0,1,0)
+			selBtn.BackgroundTransparency = 1
+			selBtn.Text               = ""
+			selBtn.AutoButtonColor    = false
+			selBtn.ZIndex             = 5
+			selBtn.Parent             = selFr
+			selBtn.MouseButton1Click:Connect(function()
+				ConstruirItens()
+				if dropAberto then FecharDrop() else AbrirDrop() end
+			end)
+			selFr.MouseEnter:Connect(function()
+				if not dropAberto then Tw(selFr,0.12,{BackgroundColor3=C.ItemHover}):Play() end
+			end)
+			selFr.MouseLeave:Connect(function()
+				Tw(selFr,0.12,{BackgroundColor3=C.Item}):Play()
+			end)
+
+			-- ── pulsacao do glow ──────────────────────────────────
+			task.spawn(function()
+				while hubSelf._rodando and fr.Parent do
+					Tw(avatarGlow,1.6,{BackgroundTransparency=0.65}):Play(); task.wait(1.6)
+					Tw(avatarGlow,1.6,{BackgroundTransparency=0.82}):Play(); task.wait(1.6)
+				end
+			end)
+
+			-- ── timer geral ───────────────────────────────────────
+			local timerConn2 = RunService.Heartbeat:Connect(function()
+				if not fr.Parent then return end
+				-- atualiza idade da conta (muda a cada hora na pratica mas ok)
+				lblIdade.Text = FormatarIdadeConta(jogadorAtual.AccountAge)
+				-- sessao
+				local inicio = sessoesInicio[jogadorAtual.UserId] or os.time()
+				local delta  = math.floor(os.time() - inicio)
+				sessValLbl.Text = FormatarSessao(delta)
+				lblSessao.Text  = FormatarSessao(delta)
+			end)
+			table.insert(hubSelf._conexoes, timerConn2)
+
+			-- ── eventos de sala ───────────────────────────────────
+			local connAdd = Players.PlayerAdded:Connect(function()
+				if dropAberto then ConstruirItens() end
+				cntLbl.Text = tostring(#Players:GetPlayers())
+			end)
+			local connRem = Players.PlayerRemoving:Connect(function(p)
+				if p == jogadorAtual then AtualizarCard(Players.LocalPlayer) end
+				if dropAberto then ConstruirItens() end
+				cntLbl.Text = tostring(#Players:GetPlayers())
+			end)
+			table.insert(hubSelf._conexoes, connAdd)
+			table.insert(hubSelf._conexoes, connRem)
+
+			CarregarAvatar(jogadorInicial)
+			AtualizarTeam(jogadorInicial)
+
+			-- ── API publica ───────────────────────────────────────
+			local obj = {}
+			function obj:DefinirJogador(p) AtualizarCard(p); ConstruirItens() end
+			function obj:Obter() return jogadorAtual end
+			obj.SetPlayer = obj.DefinirJogador
+			obj.Get       = obj.Obter
+			return obj
+		end
+		
 		return Aba
 	end
 
