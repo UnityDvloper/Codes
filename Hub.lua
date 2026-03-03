@@ -1625,6 +1625,10 @@ function Hub.novo(nome, tema, velocidade)
 
 			local _syncValorRef = {fn = function() end}
 
+			-- forward declaration: ConstruirItens chama FecharDropdown no click,
+			-- então precisa existir antes mesmo que o corpo seja definido abaixo
+			local FecharDropdown
+
 			local function ConstruirItens(filtro)
 				for _,ch in ipairs(listaHolder:GetChildren()) do
 					if ch:IsA("TextButton") or ch:IsA("Frame") then ch:Destroy() end
@@ -1733,7 +1737,7 @@ function Hub.novo(nome, tema, velocidade)
 				end)
 			end
 
-			local function FecharDropdown()
+			FecharDropdown = function()
 				aberto=false
 				Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
 				Tw(seta,0.2,{Rotation=90}):Play()
