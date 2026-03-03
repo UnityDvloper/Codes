@@ -4,6 +4,7 @@
 -- ║  + Botão fechar com X unicode limpo                     ║
 -- ║  + Slider v2 — steps, snap, valor float, label unidade  ║
 -- ║  + dropdown.valor — propriedade sempre atualizada       ║
+-- ║  + ColorPicker v2.1 — correção de clique e drag         ║
 -- ╚══════════════════════════════════════════════════════════╝
 
 local Hub = {}
@@ -259,7 +260,6 @@ function Hub.novo(nome, tema, velocidade)
 	btnMin.AutoButtonColor=false; btnMin.ZIndex=12; btnMin.Parent=topbar
 	Cantos(btnMin,99); RegCor(btnMin,"BackgroundColor3","Item"); RegCor(btnMin,"TextColor3","Sub")
 
-	-- ✦ MODIFICAÇÃO: botão fechar com X unicode limpo
 	local btnX = Instance.new("TextButton")
 	btnX.Size=UDim2.new(0,BW,0,BH); btnX.Position=UDim2.new(1,-(BW+8),0.5,-BH/2)
 	btnX.Text="✕"; btnX.Font=Enum.Font.GothamBold; btnX.TextSize=14
@@ -274,20 +274,20 @@ function Hub.novo(nome, tema, velocidade)
 	btnX.MouseButton1Down:Connect(function() Tw(btnX,0.07,{Size=UDim2.new(0,BW-3,0,BH-3)}):Play() end)
 	btnX.MouseButton1Up:Connect(function() Tw(btnX,0.1,{Size=UDim2.new(0,BW,0,BH)}):Play() end)
 
-	local corpo = F({Size=UDim2.new(1,0,1,-TOPBAR_H),Position=UDim2.new(0,0,0,TOPBAR_H),
+	local corpoJanela = F({Size=UDim2.new(1,0,1,-TOPBAR_H),Position=UDim2.new(0,0,0,TOPBAR_H),
 		BackgroundTransparency=1,Parent=janela})
 
 	local minimizado = false
 	local function AtualizarMinimizado()
 		if minimizado then
-			corpo.Visible=false; linhaSep.Visible=false
+			corpoJanela.Visible=false; linhaSep.Visible=false
 			Tw(janela,0.22,{Size=UDim2.new(0,JANELA_W,0,ALTURA_MIN)}):Play()
 			btnMin.Text="+"
 		else
 			Tw(janela,0.28,{Size=UDim2.new(0,JANELA_W,0,ALTURA_CHEIA)},
 			Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
 			btnMin.Text="–"; linhaSep.Visible=true
-			task.delay(0.28,function() if not minimizado then corpo.Visible=true end end)
+			task.delay(0.28,function() if not minimizado then corpoJanela.Visible=true end end)
 		end
 	end
 	btnMin.MouseButton1Click:Connect(function() minimizado=not minimizado; AtualizarMinimizado() end)
@@ -407,7 +407,6 @@ function Hub.novo(nome, tema, velocidade)
 		local icSize = IS_MOBILE and 26 or 30
 		local minH   = IS_MOBILE and 54 or 64
 
-		-- card principal
 		local card = F({
 			Size=UDim2.new(1,0,0,minH),
 			BackgroundColor3=cfg.bg,
@@ -415,16 +414,13 @@ function Hub.novo(nome, tema, velocidade)
 			ZIndex=301, Parent=notifHolder,
 		})
 		Cantos(card, 12)
-		-- borda colorida
 		local cardBrd = Stroke(card, cfg.cor, 1, 0.45)
-		-- barra colorida lateral esquerda
 		local lateral = F({
 			Size=UDim2.new(0,4,1,0),
 			BackgroundColor3=cfg.cor,
 			ZIndex=303, Parent=card,
 		})
 		Cantos(lateral, 4)
-		-- gradiente no fundo do card
 		local cardGrad = Instance.new("UIGradient")
 		cardGrad.Color = ColorSequence.new(
 			Color3.fromRGB(255,255,255),
@@ -437,7 +433,6 @@ function Hub.novo(nome, tema, velocidade)
 		cardGrad.Rotation = 0
 		cardGrad.Parent   = card
 
-		-- ícone circular
 		local ic = F({
 			Size=UDim2.new(0,icSize,0,icSize),
 			Position=UDim2.new(0,14,0.5,-(icSize/2)),
@@ -445,7 +440,6 @@ function Hub.novo(nome, tema, velocidade)
 			ZIndex=304, Parent=card,
 		})
 		Cantos(ic, 99)
-		-- brilho no ícone
 		local icGlow = F({
 			Size=UDim2.new(1.6,0,1.6,0),
 			Position=UDim2.new(0.5,0,0.5,0),
@@ -466,7 +460,6 @@ function Hub.novo(nome, tema, velocidade)
 
 		local txtX = 14 + icSize + 12
 
-		-- título
 		local lblTitulo = L({
 			Size=UDim2.new(1,-(txtX+10),0,16),
 			Position=UDim2.new(0,txtX,0,0),
@@ -479,7 +472,6 @@ function Hub.novo(nome, tema, velocidade)
 			AutomaticSize=Enum.AutomaticSize.Y,
 			ZIndex=302, Parent=card,
 		})
-		-- mensagem
 		local lblMsg = L({
 			Size=UDim2.new(1,-(txtX+10),0,14),
 			Position=UDim2.new(0,txtX,0,0),
@@ -493,7 +485,6 @@ function Hub.novo(nome, tema, velocidade)
 			ZIndex=302, Parent=card,
 		})
 
-		-- barra de progresso no fundo
 		local progBg = F({
 			Size=UDim2.new(1,0,0,3),
 			Position=UDim2.new(0,0,1,-3),
@@ -506,19 +497,16 @@ function Hub.novo(nome, tema, velocidade)
 			BackgroundColor3=cfg.cor,
 			ZIndex=305, Parent=progBg,
 		})
-		-- gradiente na barra de progresso
 		local progGrad = Instance.new("UIGradient")
 		progGrad.Color    = ColorSequence.new(cfg.cor, Color3.new(1,1,1))
 		progGrad.Rotation = 0
 		progGrad.Parent   = prog
 
-		-- entra pela direita
 		card.Position = UDim2.new(0, NOTIF_W+20, 0, 0)
 
 		task.defer(function()
 			if not card.Parent then return end
 
-			-- calcular altura real
 			local topPad = IS_MOBILE and 8 or 10
 			local gap    = 3
 			local botPad = IS_MOBILE and 10 or 12
@@ -528,17 +516,14 @@ function Hub.novo(nome, tema, velocidade)
 
 			card.Size = UDim2.new(1,0,0,altTotal)
 
-			-- posicionar elementos verticalmente
 			local midY = altTotal / 2
 			ic.Position    = UDim2.new(0, 14, 0, midY - icSize/2)
 			lblTitulo.Position = UDim2.new(0, txtX, 0, topPad)
 			lblMsg.Position    = UDim2.new(0, txtX, 0, topPad + altTit + gap)
 
-			-- animação de entrada (desliza da direita com bounce)
 			Tw(card, 0.35, {Position=UDim2.new(0,0,0,0)},
 				Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
 
-			-- ícone pulsa ao entrar
 			task.delay(0.1, function()
 				if not ic.Parent then return end
 				Tw(ic, 0.12, {Size=UDim2.new(0,icSize+5,0,icSize+5)}):Play()
@@ -550,11 +535,9 @@ function Hub.novo(nome, tema, velocidade)
 			end)
 
 			task.spawn(function()
-				-- barra de progresso drena
 				Tw(prog, duracao, {Size=UDim2.new(0,0,1,0)}, Enum.EasingStyle.Linear):Play()
 				task.wait(duracao)
 				if not card.Parent then return end
-				-- sai pela direita com fade
 				Tw(card, 0.25, {
 					Position=UDim2.new(0, NOTIF_W+20, 0, 0),
 					BackgroundTransparency=1,
@@ -567,29 +550,26 @@ function Hub.novo(nome, tema, velocidade)
 	end
 
 	-- ══════════════════════════════════════════════
-	--  SIDEBAR REDESENHADA
+	--  SIDEBAR
 	-- ══════════════════════════════════════════════
 	local pagArea, scrollTabs
 	local SW = SIDEBAR_W
 
 	local sidebar = F({
 		Size=UDim2.new(0,SW,1,0),
-		BackgroundColor3=C.Sidebar, Parent=corpo,
+		BackgroundColor3=C.Sidebar, Parent=corpoJanela,
 	})
 	RegCor(sidebar,"BackgroundColor3","Sidebar")
 	Cantos(sidebar,12)
-	-- tampa os cantos arredondados da esquerda
 	F({Size=UDim2.new(0.5,0,1,0), BackgroundColor3=C.Sidebar, Parent=sidebar})
 	RegCor(F({Size=UDim2.new(0.5,0,1,0), BackgroundColor3=C.Sidebar, Parent=sidebar}),"BackgroundColor3","Sidebar")
 
-	-- divisor direito com gradiente sutil
 	local divSide = F({
 		Size=UDim2.new(0,1,1,0), Position=UDim2.new(1,-1,0,0),
 		BackgroundColor3=C.Borda, ZIndex=3, Parent=sidebar,
 	})
 	RegCor(divSide,"BackgroundColor3","Borda")
 
-	-- label "MENU" no topo da sidebar (só desktop)
 	local topOffsetSidebar = IS_MOBILE and 10 or 44
 	if not IS_MOBILE then
 		local lblNav = L({
@@ -599,7 +579,6 @@ function Hub.novo(nome, tema, velocidade)
 			ZIndex=3, Parent=sidebar,
 		})
 		RegCor(lblNav,"TextColor3","Destaque")
-		-- linha abaixo do label
 		local linhMenu = F({
 			Size=UDim2.new(1,-16,0,1), Position=UDim2.new(0,8,0,36),
 			BackgroundColor3=C.Borda, ZIndex=3, Parent=sidebar,
@@ -627,7 +606,7 @@ function Hub.novo(nome, tema, velocidade)
 	pagArea = F({
 		Size=UDim2.new(1,-(SW+6),1,-10),
 		Position=UDim2.new(0,SW+2,0,5),
-		BackgroundTransparency=1, Parent=corpo,
+		BackgroundTransparency=1, Parent=corpoJanela,
 	})
 
 	local todasTabs = {}
@@ -645,18 +624,15 @@ function Hub.novo(nome, tema, velocidade)
 			t.pagina.Visible = ok
 
 			if ok then
-				-- ativa: fundo destaque + texto branco + indicador cresce
 				Tw(t.btn, 0.2, {BackgroundColor3=C.Destaque}, Enum.EasingStyle.Quart):Play()
 				Tw(t.lbl, 0.2, {TextColor3=Color3.new(1,1,1)}):Play()
 				if t.ico then Tw(t.ico, 0.2, {TextColor3=Color3.new(1,1,1)}):Play() end
 				t.lbl.Font = Enum.Font.GothamBold
-				-- indicador lateral
 				if t.ind then
 					t.ind.BackgroundTransparency = 0
 					Tw(t.ind, 0.22, {Size=UDim2.new(0,3,0.7,0)},
 						Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
 				end
-				-- brilho pontual no botão
 				if t.glow then
 					t.glow.BackgroundTransparency = 0.82
 					Tw(t.glow, 0.35, {BackgroundTransparency=1}):Play()
@@ -681,7 +657,6 @@ function Hub.novo(nome, tema, velocidade)
 	function self:CriarAba(nomeAba, icone)
 		local BTN_H = IS_MOBILE and 40 or 42
 
-		-- container do botão (para permitir overflow do indicador)
 		local btn = Instance.new("TextButton")
 		btn.Size = UDim2.new(1,0,0,BTN_H)
 		btn.BackgroundColor3 = C.Item
@@ -693,11 +668,9 @@ function Hub.novo(nome, tema, velocidade)
 		Cantos(btn, 9)
 		RegCor(btn,"BackgroundColor3","Item")
 
-		-- borda sutil
 		local btnBrd = Stroke(btn, C.Borda, 1, 0.6)
 		RegCor(btnBrd,"Color","Borda")
 
-		-- indicador lateral esquerdo
 		local ind = F({
 			Size=UDim2.new(0,3,0,0),
 			Position=UDim2.new(0,-1,0.5,0),
@@ -708,7 +681,6 @@ function Hub.novo(nome, tema, velocidade)
 		})
 		Cantos(ind,99); RegCor(ind,"BackgroundColor3","Destaque")
 
-		-- glow de clique (flash)
 		local glow = F({
 			Size=UDim2.new(1,0,1,0),
 			BackgroundColor3=C.Destaque,
@@ -717,7 +689,6 @@ function Hub.novo(nome, tema, velocidade)
 		})
 		Cantos(glow,9); RegCor(glow,"BackgroundColor3","Destaque")
 
-		-- ícone (se tiver)
 		local ico = nil
 		local lblX = 10
 		if icone then
@@ -734,7 +705,6 @@ function Hub.novo(nome, tema, velocidade)
 			lblX = IS_MOBILE and 32 or 34
 		end
 
-		-- label do nome
 		local lbl = L({
 			Size=UDim2.new(1,-(lblX+6),1,0),
 			Position=UDim2.new(0,lblX,0,0),
@@ -748,7 +718,6 @@ function Hub.novo(nome, tema, velocidade)
 		})
 		RegCor(lbl,"TextColor3","Sub")
 
-		-- hover (só quando não ativo)
 		btn.MouseEnter:Connect(function()
 			if tabAtiva and tabAtiva.btn ~= btn then
 				Tw(btn, 0.12, {BackgroundColor3=C.ItemHover}):Play()
@@ -768,7 +737,6 @@ function Hub.novo(nome, tema, velocidade)
 			Tw(btn, 0.12, {Size=UDim2.new(1,0,0,BTN_H)}):Play()
 		end)
 
-		-- página de conteúdo
 		local pagina = Instance.new("ScrollingFrame")
 		pagina.Size = UDim2.new(1,0,1,0)
 		pagina.CanvasSize = UDim2.new(0,0,0,0)
@@ -801,67 +769,104 @@ function Hub.novo(nome, tema, velocidade)
 		local function RC(obj,prop,key) RegCor(obj,prop,key) end
 
 		-- ╔══════════════════════════════════════════════════════════╗
-		-- ║  CriarColorPicker v3                                    ║
+		-- ║  CriarColorPicker v2.1 — CORRIGIDO                      ║
 		-- ╚══════════════════════════════════════════════════════════╝
 		function Aba:CriarColorPicker(texto, padraoColor3, callback)
 			local corAtual = padraoColor3 or Color3.fromRGB(255,255,255)
 			local h, s, v  = Color3.toHSV(corAtual)
 			local aberto   = false
 
-			local FH    = IS_MOBILE and 44 or 42
-			local CVW   = IS_MOBILE and 160 or 190
-			local CVH   = IS_MOBILE and 120 or 140
-			local BARH  = 16
-			local PAD   = 10
-			local RW    = IS_MOBILE and 85 or 100
-			local RX    = PAD + CVW + PAD
-			-- altura total do picker expandido
-			local PICKER_H = CVH + BARH*2 + PAD*4 + 26 + 26*3 + 10
-			local AH    = FH + PICKER_H
+			local FH     = IS_MOBILE and 44 or 42
+			local CVW    = IS_MOBILE and 160 or 190
+			local CVH    = IS_MOBILE and 130 or 150
+			local BAR_H  = 16
+			local PAD    = 10
+			local RPAD   = 10
+			local RW     = IS_MOBILE and 85 or 100
+			local RX     = PAD + CVW + RPAD
+			local PICKER_H = PAD + CVH + 8 + BAR_H + 8 + BAR_H + 8 + 18*2 + 4 + PAD
+			local AH     = FH + PICKER_H
 
-			-- fr cresce/encolhe com tween — ClipsDescendants=true é OK
-			-- porque o corpo só aparece depois que o fr já cresceu
+			-- ╔══════════════════════════════════════════════════════╗
+			-- ║  FIX #1: fr usa ClipsDescendants=true para que o    ║
+			-- ║  conteúdo interno não vaze visualmente, MAS o painel ║
+			-- ║  de opções (pickerCorpo) vive FORA do fr, no pagina  ║
+			-- ║  para não ser cortado quando o fr está menor.        ║
+			-- ║  Alternativamente: fr com ClipsDescendants=false e  ║
+			-- ║  o cab com ZIndex alto o suficiente.                 ║
+			-- ╚══════════════════════════════════════════════════════╝
+
+			-- card externo
 			local fr = F({
 				Size=UDim2.new(1,-6,0,FH),
 				BackgroundColor3=C.Cartao,
-				ClipsDescendants=true,
-				LayoutOrder=PO(), Parent=pagina,
+				ClipsDescendants=false,
+				LayoutOrder=PO(),
+				Parent=pagina,
 			})
 			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
 
-			-- cabeçalho
+			-- ╔══════════════════════════════════════════════════════╗
+			-- ║  FIX #2: usar TextButton como cabeçalho diretamente  ║
+			-- ║  sem Frame opaco na frente. Removemos o cabBg que    ║
+			-- ║  bloqueava os cliques.                               ║
+			-- ╚══════════════════════════════════════════════════════╝
 			local cab = Instance.new("TextButton")
-			cab.Size=UDim2.new(1,0,0,FH); cab.BackgroundTransparency=1
-			cab.Text=""; cab.AutoButtonColor=false; cab.ZIndex=5; cab.Parent=fr
+			cab.Size=UDim2.new(1,0,0,FH)
+			cab.BackgroundColor3=C.Cartao
+			cab.BackgroundTransparency=0
+			cab.Text=""; cab.AutoButtonColor=false
+			cab.ZIndex=2; cab.Parent=fr
+			Cantos(cab,10); RC(cab,"BackgroundColor3","Cartao")
 
-			L({Size=UDim2.new(0.5,0,1,0), Position=UDim2.new(0,14,0,0), Text=texto,
-				TextColor3=C.Sub, Font=Enum.Font.Gotham, TextSize=12, ZIndex=5,
-				TextXAlignment=Enum.TextXAlignment.Left, Parent=fr})
+			-- label do título no cab (diretamente, sem Frame intermediário)
+			L({
+				Size=UDim2.new(0.5,0,1,0),
+				Position=UDim2.new(0,14,0,0),
+				Text=texto,
+				TextColor3=C.Sub,
+				Font=Enum.Font.Gotham,
+				TextSize=12,
+				ZIndex=3,
+				TextXAlignment=Enum.TextXAlignment.Left,
+				Parent=cab,
+			})
 
-			local preview = F({Size=UDim2.new(0,24,0,24),
+			local preview = F({
+				Size=UDim2.new(0,24,0,24),
 				Position=UDim2.new(1,-54,0.5,-12),
-				BackgroundColor3=corAtual, ZIndex=5, Parent=fr})
+				BackgroundColor3=corAtual,
+				ZIndex=3, Parent=cab,
+			})
 			Cantos(preview,6); Stroke(preview,C.Borda,1,0.4)
 
-			local seta = L({Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-26,0,0),
-				Text="›", TextColor3=C.Fraco, Font=Enum.Font.GothamBold,
-				TextSize=16, Rotation=90, ZIndex=5, Parent=fr})
+			local seta = L({
+				Size=UDim2.new(0,20,1,0),
+				Position=UDim2.new(1,-26,0,0),
+				Text="›", TextColor3=C.Fraco,
+				Font=Enum.Font.GothamBold,
+				TextSize=16, Rotation=90,
+				ZIndex=3, Parent=cab,
+			})
 			RC(seta,"TextColor3","Fraco")
 
-			-- corpo — começa com Visible=false, só ativa após fr crescer
-			local corpo = F({
+			-- painel de opções (filho de fr, abaixo do cab)
+			local pickerCorpo = F({
 				Size=UDim2.new(1,0,0,PICKER_H),
 				Position=UDim2.new(0,0,0,FH),
-				BackgroundTransparency=1,
-				Visible=false, ZIndex=2, Parent=fr,
+				BackgroundColor3=C.Cartao,
+				ZIndex=1,
+				Visible=false,
+				Parent=fr,
 			})
+			RC(pickerCorpo,"BackgroundColor3","Cartao")
 
 			-- ── CANVAS SV ──────────────────────────────────────────
 			local cvFr = F({
 				Size=UDim2.new(0,CVW,0,CVH),
 				Position=UDim2.new(0,PAD,0,PAD),
 				BackgroundColor3=Color3.fromHSV(h,1,1),
-				ZIndex=3, Parent=corpo,
+				ZIndex=2, Parent=pickerCorpo,
 			})
 			Cantos(cvFr,6); Stroke(cvFr,C.Borda,1,0.5)
 
@@ -869,58 +874,77 @@ function Hub.novo(nome, tema, velocidade)
 			gradSat.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h,1,1))
 			gradSat.Rotation = 0; gradSat.Parent = cvFr
 
-			local cvDark = F({Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.new(0,0,0), ZIndex=4, Parent=cvFr})
+			local cvDark = F({Size=UDim2.new(1,0,1,0), ZIndex=3, Parent=cvFr})
 			Cantos(cvDark,6)
 			local gradDark = Instance.new("UIGradient")
 			gradDark.Color = ColorSequence.new(Color3.new(0,0,0),Color3.new(0,0,0))
-			gradDark.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(1,0)})
+			gradDark.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0,1),
+				NumberSequenceKeypoint.new(1,0),
+			})
 			gradDark.Rotation = 90; gradDark.Parent = cvDark
 
 			local cvCursor = F({
 				Size=UDim2.new(0,14,0,14), AnchorPoint=Vector2.new(0.5,0.5),
 				Position=UDim2.new(s,0,1-v,0),
-				BackgroundColor3=Color3.new(1,1,1), ZIndex=7, Parent=cvFr,
+				BackgroundColor3=Color3.new(1,1,1), ZIndex=6, Parent=cvFr,
 			})
 			Cantos(cvCursor,99); Stroke(cvCursor,Color3.new(0,0,0),2,0.2)
 
-			-- hitbox canvas — ZIndex acima de tudo dentro do cvFr
-			local cvHit = Instance.new("TextButton")
-			cvHit.Size=UDim2.new(1,0,1,0); cvHit.BackgroundTransparency=1
-			cvHit.Text=""; cvHit.AutoButtonColor=false; cvHit.ZIndex=9; cvHit.Parent=cvFr
-
 			-- ── HUE BAR ────────────────────────────────────────────
-			local hueY = PAD + CVH + PAD
-			local hueFr = F({Size=UDim2.new(0,CVW,0,BARH), Position=UDim2.new(0,PAD,0,hueY), ZIndex=3, Parent=corpo})
+			local hueY = PAD + CVH + 8
+			local hueFr = F({
+				Size=UDim2.new(0,CVW,0,BAR_H),
+				Position=UDim2.new(0,PAD,0,hueY),
+				ZIndex=2, Parent=pickerCorpo,
+			})
 			Cantos(hueFr,99); Stroke(hueFr,C.Borda,1,0.5)
 			local hueKfs={}
 			for i=0,6 do hueKfs[i+1]=ColorSequenceKeypoint.new(i/6,Color3.fromHSV(i/6,1,1)) end
-			Instance.new("UIGradient",hueFr).Color = ColorSequence.new(hueKfs)
-			local hueCur = F({Size=UDim2.new(0,BARH+4,0,BARH+4), AnchorPoint=Vector2.new(0.5,0.5),
-				Position=UDim2.new(h,0,0.5,0), BackgroundColor3=Color3.new(1,1,1), ZIndex=5, Parent=hueFr})
+			local hueGrad = Instance.new("UIGradient")
+			hueGrad.Color = ColorSequence.new(hueKfs)
+			hueGrad.Rotation = 0; hueGrad.Parent = hueFr
+			local hueCur = F({
+				Size=UDim2.new(0,BAR_H+2,0,BAR_H+2), AnchorPoint=Vector2.new(0.5,0.5),
+				Position=UDim2.new(h,0,0.5,0),
+				BackgroundColor3=Color3.new(1,1,1), ZIndex=4, Parent=hueFr,
+			})
 			Cantos(hueCur,99); Stroke(hueCur,Color3.new(0,0,0),2,0.2)
-			local hueHit = Instance.new("TextButton")
-			hueHit.Size=UDim2.new(1,0,1,8); hueHit.Position=UDim2.new(0,0,0,-4)
-			hueHit.BackgroundTransparency=1; hueHit.Text=""; hueHit.AutoButtonColor=false
-			hueHit.ZIndex=7; hueHit.Parent=hueFr
 
 			-- ── VALUE BAR ──────────────────────────────────────────
-			local valY = hueY + BARH + PAD
-			local valFr = F({Size=UDim2.new(0,CVW,0,BARH), Position=UDim2.new(0,PAD,0,valY), ZIndex=3, Parent=corpo})
+			local valY = hueY + BAR_H + 8
+			local valFr = F({
+				Size=UDim2.new(0,CVW,0,BAR_H),
+				Position=UDim2.new(0,PAD,0,valY),
+				ZIndex=2, Parent=pickerCorpo,
+			})
 			Cantos(valFr,99); Stroke(valFr,C.Borda,1,0.5)
 			local valGrad = Instance.new("UIGradient")
 			valGrad.Color = ColorSequence.new(Color3.new(0,0,0), Color3.fromHSV(h,s,1))
 			valGrad.Rotation = 0; valGrad.Parent = valFr
-			local valCur = F({Size=UDim2.new(0,BARH+4,0,BARH+4), AnchorPoint=Vector2.new(0.5,0.5),
-				Position=UDim2.new(v,0,0.5,0), BackgroundColor3=Color3.new(1,1,1), ZIndex=5, Parent=valFr})
+			local valCur = F({
+				Size=UDim2.new(0,BAR_H+2,0,BAR_H+2), AnchorPoint=Vector2.new(0.5,0.5),
+				Position=UDim2.new(v,0,0.5,0),
+				BackgroundColor3=Color3.new(1,1,1), ZIndex=4, Parent=valFr,
+			})
 			Cantos(valCur,99); Stroke(valCur,Color3.new(0,0,0),2,0.2)
-			local valHit = Instance.new("TextButton")
-			valHit.Size=UDim2.new(1,0,1,8); valHit.Position=UDim2.new(0,0,0,-4)
-			valHit.BackgroundTransparency=1; valHit.Text=""; valHit.AutoButtonColor=false
-			valHit.ZIndex=7; valHit.Parent=valFr
+
+			-- ── PRESETS ─────────────────────────────────────────────
+			local presetY = valY + BAR_H + 8
+			local presets = {
+				Color3.fromRGB(255,59,59), Color3.fromRGB(255,140,0), Color3.fromRGB(255,210,0),
+				Color3.fromRGB(74,222,128),Color3.fromRGB(56,189,248),Color3.fromRGB(167,139,250),
+				Color3.fromRGB(232,121,249),Color3.fromRGB(255,100,130),Color3.fromRGB(34,211,238),
+				Color3.fromRGB(255,255,255),Color3.fromRGB(148,148,165),Color3.fromRGB(0,0,0),
+			}
+			local PCOLS = 6; local PCELL = IS_MOBILE and 20 or 22; local PGAP = 4
 
 			-- ── PAINEL DIREITO ──────────────────────────────────────
-			local bigPrev = F({Size=UDim2.new(0,RW,0,44), Position=UDim2.new(0,RX,0,PAD),
-				BackgroundColor3=corAtual, ZIndex=3, Parent=corpo})
+			local bigPrev = F({
+				Size=UDim2.new(0,RW,0,44),
+				Position=UDim2.new(0,RX,0,PAD),
+				BackgroundColor3=corAtual, ZIndex=2, Parent=pickerCorpo,
+			})
 			Cantos(bigPrev,8); Stroke(bigPrev,C.Borda,1,0.3)
 
 			local function CorParaHex(c)
@@ -930,28 +954,26 @@ function Hub.novo(nome, tema, velocidade)
 			local function HexParaCor(hex)
 				hex=hex:gsub("#","")
 				if #hex~=6 then return nil end
-				local r=tonumber(hex:sub(1,2),16); local g=tonumber(hex:sub(3,4),16); local b=tonumber(hex:sub(5,6),16)
+				local r=tonumber(hex:sub(1,2),16)
+				local g=tonumber(hex:sub(3,4),16)
+				local b=tonumber(hex:sub(5,6),16)
 				if not r or not g or not b then return nil end
 				return Color3.fromRGB(r,g,b)
 			end
 
-			local hexFr = F({Size=UDim2.new(0,RW,0,26), Position=UDim2.new(0,RX,0,PAD+48),
-				BackgroundColor3=C.Item, ZIndex=3, Parent=corpo})
+			local hexFr = F({Size=UDim2.new(0,RW,0,26),
+				Position=UDim2.new(0,RX,0,PAD+48),
+				BackgroundColor3=C.Item, ZIndex=2, Parent=pickerCorpo})
 			Cantos(hexFr,7); Stroke(hexFr,C.Borda,1,0.4); RC(hexFr,"BackgroundColor3","Item")
 			local hexBox = Instance.new("TextBox")
 			hexBox.Size=UDim2.new(1,-8,1,-4); hexBox.Position=UDim2.new(0,4,0,2)
 			hexBox.BackgroundTransparency=1; hexBox.Text=CorParaHex(corAtual)
 			hexBox.TextColor3=C.Texto; hexBox.Font=Enum.Font.GothamBold
 			hexBox.TextSize=11; hexBox.TextXAlignment=Enum.TextXAlignment.Center
-			hexBox.ClearTextOnFocus=false; hexBox.ZIndex=4; hexBox.Parent=hexFr
+			hexBox.ClearTextOnFocus=false; hexBox.ZIndex=3; hexBox.Parent=hexFr
 			RC(hexBox,"TextColor3","Texto")
-			hexBox.FocusLost:Connect(function()
-				local nc=HexParaCor(hexBox.Text)
-				if nc then h,s,v=Color3.toHSV(nc); AtualizarTudo()
-				else hexBox.Text=CorParaHex(corAtual) end
-			end)
 
-			-- sliders RGB
+			-- sliders R G B
 			local rgbData = {
 				{label="R",cor=Color3.fromRGB(220,55,55), prop="r"},
 				{label="G",cor=Color3.fromRGB(48,200,100),prop="g"},
@@ -959,67 +981,50 @@ function Hub.novo(nome, tema, velocidade)
 			}
 			local rgbRefs = {}
 			local function GetRGB()
-				return math.floor(corAtual.R*255+0.5),math.floor(corAtual.G*255+0.5),math.floor(corAtual.B*255+0.5)
+				return math.floor(corAtual.R*255+0.5),
+					   math.floor(corAtual.G*255+0.5),
+					   math.floor(corAtual.B*255+0.5)
 			end
 			for i,rd in ipairs(rgbData) do
 				local ry = PAD+78+(i-1)*26
 				L({Size=UDim2.new(0,12,0,18),Position=UDim2.new(0,RX,0,ry),
-					Text=rd.label,TextColor3=rd.cor,Font=Enum.Font.GothamBold,TextSize=10,ZIndex=3,Parent=corpo})
-				local rt=F({Size=UDim2.new(0,RW-16,0,8),Position=UDim2.new(0,RX+14,0,ry+5),
-					BackgroundColor3=C.Item,ZIndex=3,Parent=corpo})
+					Text=rd.label,TextColor3=rd.cor,Font=Enum.Font.GothamBold,
+					TextSize=10,ZIndex=2,Parent=pickerCorpo})
+				local rt=F({Size=UDim2.new(0,RW-16,0,8),
+					Position=UDim2.new(0,RX+14,0,ry+5),
+					BackgroundColor3=C.Item,ZIndex=2,Parent=pickerCorpo})
 				Cantos(rt,99); RC(rt,"BackgroundColor3","Item")
-				local rg=Instance.new("UIGradient"); rg.Color=ColorSequence.new(Color3.new(0,0,0),rd.cor); rg.Rotation=0; rg.Parent=rt
-				local rf=F({Size=UDim2.new(0.5,0,1,0),BackgroundColor3=rd.cor,ZIndex=4,Parent=rt}); Cantos(rf,99)
+				local rg=Instance.new("UIGradient")
+				rg.Color=ColorSequence.new(Color3.new(0,0,0),rd.cor); rg.Rotation=0; rg.Parent=rt
+				local rf=F({Size=UDim2.new(0.5,0,1,0),BackgroundColor3=rd.cor,ZIndex=3,Parent=rt})
+				Cantos(rf,99)
 				local rb=F({Size=UDim2.new(0,12,0,12),AnchorPoint=Vector2.new(0.5,0.5),
-					Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=Color3.new(1,1,1),ZIndex=5,Parent=rt})
+					Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=Color3.new(1,1,1),ZIndex=4,Parent=rt})
 				Cantos(rb,99); Stroke(rb,Color3.new(0,0,0),1,0.6)
-				local rHit=Instance.new("TextButton"); rHit.Size=UDim2.new(1,0,0,24); rHit.Position=UDim2.new(0,0,0.5,-12)
-				rHit.BackgroundTransparency=1; rHit.Text=""; rHit.AutoButtonColor=false; rHit.ZIndex=6; rHit.Parent=rt
-				rgbRefs[rd.prop]={trilha=rt,fill=rf,bola=rb,hit=rHit}
+				rgbRefs[rd.prop]={trilha=rt,fill=rf,bola=rb}
 			end
 
-			-- ── PRESETS ─────────────────────────────────────────────
-			local presets={
-				Color3.fromRGB(255,59,59),Color3.fromRGB(255,140,0),Color3.fromRGB(255,210,0),
-				Color3.fromRGB(74,222,128),Color3.fromRGB(56,189,248),Color3.fromRGB(167,139,250),
-				Color3.fromRGB(232,121,249),Color3.fromRGB(255,100,130),Color3.fromRGB(34,211,238),
-				Color3.fromRGB(255,255,255),Color3.fromRGB(148,148,165),Color3.fromRGB(0,0,0),
-			}
-			local PCOLS=6; local PCELL=IS_MOBILE and 20 or 22; local PGAP=4
-			local presetY=PAD+CVH+BARH*2+PAD*3
-			for i,pc in ipairs(presets) do
-				local col=(i-1)%PCOLS; local row=math.floor((i-1)/PCOLS)
-				local pb=Instance.new("TextButton")
-				pb.Size=UDim2.new(0,PCELL,0,PCELL)
-				pb.Position=UDim2.new(0,PAD+col*(PCELL+PGAP),0,presetY+row*(PCELL+PGAP))
-				pb.BackgroundColor3=pc; pb.Text=""; pb.AutoButtonColor=false; pb.ZIndex=3; pb.Parent=corpo
-				Cantos(pb,5)
-				local pbBrd=Stroke(pb,Color3.new(0,0,0),1,0.7)
-				pb.MouseEnter:Connect(function()
-					Tw(pb,0.08,{Size=UDim2.new(0,PCELL+3,0,PCELL+3),Position=UDim2.new(0,PAD+col*(PCELL+PGAP)-1,0,presetY+row*(PCELL+PGAP)-1)}):Play()
-					Tw(pbBrd,0.08,{Transparency=0.1}):Play()
-				end)
-				pb.MouseLeave:Connect(function()
-					Tw(pb,0.08,{Size=UDim2.new(0,PCELL,0,PCELL),Position=UDim2.new(0,PAD+col*(PCELL+PGAP),0,presetY+row*(PCELL+PGAP))}):Play()
-					Tw(pbBrd,0.08,{Transparency=0.7}):Play()
-				end)
-				pb.MouseButton1Click:Connect(function() h,s,v=Color3.toHSV(pc); AtualizarTudo() end)
-			end
-
-			-- ── ATUALIZAR TUDO ──────────────────────────────────────
-			function AtualizarTudo()
+			-- ╔══════════════════════════════════════════════════════╗
+			-- ║  FIX #3: AtualizarTudo definida ANTES dos presets   ║
+			-- ║  e de qualquer código que a chame.                  ║
+			-- ╚══════════════════════════════════════════════════════╝
+			local function AtualizarTudo()
 				h=math.clamp(h,0,1); s=math.clamp(s,0,1); v=math.clamp(v,0,1)
 				corAtual=Color3.fromHSV(h,s,v)
 				preview.BackgroundColor3=corAtual
 				bigPrev.BackgroundColor3=corAtual
 				if not hexBox:IsFocused() then hexBox.Text=CorParaHex(corAtual) end
+				-- canvas
 				cvFr.BackgroundColor3=Color3.fromHSV(h,1,1)
 				gradSat.Color=ColorSequence.new(Color3.new(1,1,1),Color3.fromHSV(h,1,1))
 				cvCursor.Position=UDim2.new(s,0,1-v,0)
 				cvCursor.BackgroundColor3=corAtual
+				-- hue
 				hueCur.Position=UDim2.new(h,0,0.5,0)
+				-- val
 				valGrad.Color=ColorSequence.new(Color3.new(0,0,0),Color3.fromHSV(h,s,1))
 				valCur.Position=UDim2.new(v,0,0.5,0)
+				-- rgb sliders
 				local r2,g2,b2=GetRGB()
 				local rv={r=r2/255,g=g2/255,b=b2/255}
 				for prop,ref in pairs(rgbRefs) do
@@ -1028,6 +1033,37 @@ function Hub.novo(nome, tema, velocidade)
 				end
 				if callback then callback(corAtual) end
 			end
+
+			-- agora sim: criar os presets (chamam AtualizarTudo que já existe)
+			for i,pc in ipairs(presets) do
+				local col=(i-1)%PCOLS; local row=math.floor((i-1)/PCOLS)
+				local pb=Instance.new("TextButton")
+				pb.Size=UDim2.new(0,PCELL,0,PCELL)
+				pb.Position=UDim2.new(0,PAD+col*(PCELL+PGAP),0,presetY+row*(PCELL+PGAP))
+				pb.BackgroundColor3=pc; pb.Text=""; pb.AutoButtonColor=false
+				pb.ZIndex=3; pb.Parent=pickerCorpo; Cantos(pb,5)
+				local pbBrd=Stroke(pb,Color3.new(0,0,0),1,0.7)
+				pb.MouseEnter:Connect(function()
+					Tw(pb,0.08,{Size=UDim2.new(0,PCELL+3,0,PCELL+3),
+						Position=UDim2.new(0,PAD+col*(PCELL+PGAP)-1,0,presetY+row*(PCELL+PGAP)-1)}):Play()
+					Tw(pbBrd,0.08,{Transparency=0.1}):Play()
+				end)
+				pb.MouseLeave:Connect(function()
+					Tw(pb,0.08,{Size=UDim2.new(0,PCELL,0,PCELL),
+						Position=UDim2.new(0,PAD+col*(PCELL+PGAP),0,presetY+row*(PCELL+PGAP))}):Play()
+					Tw(pbBrd,0.08,{Transparency=0.7}):Play()
+				end)
+				pb.MouseButton1Click:Connect(function()
+					h,s,v=Color3.toHSV(pc); AtualizarTudo()
+				end)
+			end
+
+			-- conectar hexBox agora que AtualizarTudo existe
+			hexBox.FocusLost:Connect(function()
+				local nc=HexParaCor(hexBox.Text)
+				if nc then h,s,v=Color3.toHSV(nc); AtualizarTudo()
+				else hexBox.Text=CorParaHex(corAtual) end
+			end)
 
 			-- ── DRAG UNIFICADO ──────────────────────────────────────
 			local dragTipo = nil
@@ -1057,58 +1093,98 @@ function Hub.novo(nome, tema, velocidade)
 			end
 
 			local function IsBegan(i)
-				return i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch
+				return i.UserInputType==Enum.UserInputType.MouseButton1
+					or i.UserInputType==Enum.UserInputType.Touch
+			end
+			local function IsMoved(i)
+				return i.UserInputType==Enum.UserInputType.MouseMovement
+					or i.UserInputType==Enum.UserInputType.Touch
+			end
+			local function IsEnded(i)
+				return i.UserInputType==Enum.UserInputType.MouseButton1
+					or i.UserInputType==Enum.UserInputType.Touch
 			end
 
+			-- hit areas para drag
+			local cvHit = Instance.new("TextButton")
+			cvHit.Size=UDim2.new(1,0,1,0); cvHit.BackgroundTransparency=1
+			cvHit.Text=""; cvHit.AutoButtonColor=false; cvHit.ZIndex=8; cvHit.Parent=cvFr
 			cvHit.InputBegan:Connect(function(i)
 				if not IsBegan(i) then return end
-				dragTipo="cv"; Arrastar(i.Position.X,i.Position.Y)
+				dragTipo="cv"
+				Arrastar(i.Position.X,i.Position.Y)
 				Tw(cvCursor,0.06,{Size=UDim2.new(0,18,0,18)}):Play()
 			end)
+
+			local hueHit = Instance.new("TextButton")
+			hueHit.Size=UDim2.new(1,0,1,4); hueHit.Position=UDim2.new(0,0,0,-2)
+			hueHit.BackgroundTransparency=1; hueHit.Text=""
+			hueHit.AutoButtonColor=false; hueHit.ZIndex=5; hueHit.Parent=hueFr
 			hueHit.InputBegan:Connect(function(i)
 				if not IsBegan(i) then return end
 				dragTipo="hue"; Arrastar(i.Position.X,i.Position.Y)
 			end)
+
+			local valHit = Instance.new("TextButton")
+			valHit.Size=UDim2.new(1,0,1,4); valHit.Position=UDim2.new(0,0,0,-2)
+			valHit.BackgroundTransparency=1; valHit.Text=""
+			valHit.AutoButtonColor=false; valHit.ZIndex=5; valHit.Parent=valFr
 			valHit.InputBegan:Connect(function(i)
 				if not IsBegan(i) then return end
 				dragTipo="val"; Arrastar(i.Position.X,i.Position.Y)
 			end)
+
 			for prop,ref in pairs(rgbRefs) do
 				local p2=prop
-				ref.hit.InputBegan:Connect(function(i)
+				local rHit=Instance.new("TextButton")
+				rHit.Size=UDim2.new(1,0,0,24); rHit.Position=UDim2.new(0,0,0.5,-12)
+				rHit.BackgroundTransparency=1; rHit.Text=""
+				rHit.AutoButtonColor=false; rHit.ZIndex=5; rHit.Parent=ref.trilha
+				rHit.InputBegan:Connect(function(i)
 					if not IsBegan(i) then return end
 					dragTipo=p2; Arrastar(i.Position.X,i.Position.Y)
 				end)
 			end
 
+			-- ╔══════════════════════════════════════════════════════╗
+			-- ║  FIX #4: listeners globais registrados em _conexoes  ║
+			-- ║  para serem desconectados quando o hub fechar.       ║
+			-- ║  Usamos variável local dragTipo deste picker.        ║
+			-- ╚══════════════════════════════════════════════════════╝
 			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
 				if dragTipo==nil then return end
-				if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then
-					Arrastar(i.Position.X,i.Position.Y)
-				end
+				if IsMoved(i) then Arrastar(i.Position.X,i.Position.Y) end
 			end))
 			table.insert(hubSelf._conexoes, EntradaUsuario.InputEnded:Connect(function(i)
-				if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-					if dragTipo=="cv" then Tw(cvCursor,0.08,{Size=UDim2.new(0,14,0,14)}):Play() end
-					dragTipo=nil
+				if not IsEnded(i) then return end
+				if dragTipo=="cv" then
+					Tw(cvCursor,0.08,{Size=UDim2.new(0,14,0,14)}):Play()
 				end
+				dragTipo=nil
 			end))
 
 			-- ── ABRIR / FECHAR ──────────────────────────────────────
 			cab.MouseButton1Click:Connect(function()
 				aberto=not aberto
 				if aberto then
-					-- primeiro cresce o fr, depois mostra o corpo
-					Tw(fr,0.3,{Size=UDim2.new(1,-6,0,AH)},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
-					task.delay(0.15, function() if aberto then corpo.Visible=true end end)
+					pickerCorpo.Visible=true
+					Tw(fr,0.28,{Size=UDim2.new(1,-6,0,AH)},
+						Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
 				else
-					corpo.Visible=false
-					Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
+					Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},
+						Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
+					task.delay(0.2,function()
+						if not aberto then pickerCorpo.Visible=false end
+					end)
 				end
 				Tw(seta,0.2,{Rotation=aberto and -90 or 90}):Play()
 			end)
-			fr.MouseEnter:Connect(function() if not aberto then Tw(fr,0.12,{BackgroundColor3=C.ItemHover}):Play() end end)
-			fr.MouseLeave:Connect(function() Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end)
+			fr.MouseEnter:Connect(function()
+				if not aberto then Tw(cab,0.12,{BackgroundColor3=C.ItemHover}):Play() end
+			end)
+			fr.MouseLeave:Connect(function()
+				Tw(cab,0.12,{BackgroundColor3=C.Cartao}):Play()
+			end)
 
 			AtualizarTudo()
 
@@ -1118,7 +1194,6 @@ function Hub.novo(nome, tema, velocidade)
 			obj.Set=obj.Definir; obj.Get=obj.Obter
 			return obj
 		end
-
 
 		function Aba:CriarSecao(titulo)
 			local fr=F({Size=UDim2.new(1,-6,0,22),BackgroundTransparency=1,LayoutOrder=PO(),Parent=pagina})
@@ -1154,14 +1229,13 @@ function Hub.novo(nome, tema, velocidade)
 			local estado = (padrao == true)
 
 			local TW, TH = 52, 28
-			local BR      = TH - 6   -- bolinha = 22px
+			local BR      = TH - 6
 
 			local fr = F({Size=UDim2.new(1,-6,0,IH), BackgroundColor3=C.Cartao, LayoutOrder=PO(), Parent=pagina})
 			Cantos(fr,10)
 			local frBrd = Stroke(fr, C.Borda, 1, 0.35); RC(frBrd,"Color","Borda")
 			RC(fr,"BackgroundColor3","Cartao")
 
-			-- label do texto
 			local lblTxt = L({
 				Size=UDim2.new(1,-(TW+80),1,0), Position=UDim2.new(0,14,0,0),
 				Text=texto, TextColor3=C.Texto, Font=Enum.Font.Gotham,
@@ -1169,7 +1243,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			RC(lblTxt,"TextColor3","Texto")
 
-			-- trilha do toggle
 			local trilha = F({
 				Size=UDim2.new(0,TW,0,TH),
 				Position=UDim2.new(1,-(TW+12),0.5,-(TH/2)),
@@ -1179,7 +1252,6 @@ function Hub.novo(nome, tema, velocidade)
 			Cantos(trilha, 99)
 			local trilhaBrd = Stroke(trilha, Color3.new(0,0,0), 1, 0.88)
 
-			-- brilho interno da trilha (glow quando ON)
 			local trilhaGlow = F({
 				Size=UDim2.new(1,0,1,0), BackgroundColor3=C.Sucesso,
 				BackgroundTransparency = estado and 0.7 or 1,
@@ -1187,7 +1259,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			Cantos(trilhaGlow,99)
 
-			-- bolinha
 			local bolinhaX_off = 3
 			local bolinhaX_on  = TW - BR - 3
 			local bolinha = F({
@@ -1198,7 +1269,6 @@ function Hub.novo(nome, tema, velocidade)
 			Cantos(bolinha,99)
 			Stroke(bolinha, Color3.new(0,0,0), 1, 0.78)
 
-			-- label ON/OFF
 			local lblE = L({
 				Size=UDim2.new(0,38,1,0),
 				Position=UDim2.new(1,-(TW+56),0,0),
@@ -1212,13 +1282,10 @@ function Hub.novo(nome, tema, velocidade)
 				local es = Enum.EasingStyle.Back
 				local eo = Enum.EasingDirection.Out
 				if estado then
-					-- trilha verde + glow
 					Tw(trilha, d, {BackgroundColor3=C.Sucesso}):Play()
 					Tw(trilhaGlow, d, {BackgroundTransparency=0.7}):Play()
 					Tw(trilhaBrd, d, {Transparency=0.88}):Play()
-					-- bolinha desliza para direita com efeito elástico
 					Tw(bolinha, d, {Position=UDim2.new(0,bolinhaX_on,0.5,-(BR/2))}, es, eo):Play()
-					-- bolinha estica levemente durante o movimento
 					if anim then
 						Tw(bolinha, d*0.4, {Size=UDim2.new(0,BR+5,0,BR-3)}):Play()
 						task.delay(d*0.4, function()
@@ -1226,7 +1293,6 @@ function Hub.novo(nome, tema, velocidade)
 						end)
 					end
 					Tw(lblE, d, {TextColor3=C.Sucesso}):Play(); lblE.Text="ON"
-					-- borda do card fica na cor de sucesso
 					Tw(frBrd, d, {Color=C.Sucesso, Transparency=0.55}):Play()
 				else
 					Tw(trilha, d, {BackgroundColor3=C.Fraco}):Play()
@@ -1245,7 +1311,6 @@ function Hub.novo(nome, tema, velocidade)
 				if callback then callback(estado) end
 			end
 
-			-- clique no frame inteiro
 			local THRESH = 8
 			local touchStart, touchDrag = nil, false
 
@@ -1287,16 +1352,6 @@ function Hub.novo(nome, tema, velocidade)
 			return obj
 		end
 
-		-- ╔══════════════════════════════════════════════════════════╗
-		-- ║  CriarSlider v2                                         ║
-		-- ║  CriarSlider(texto, min, max, padrao, callback, config) ║
-		-- ║  config = {                                             ║
-		-- ║    step    = 1,      -- incremento (ex: 0.1, 5, 10)    ║
-		-- ║    float   = false,  -- mostrar casas decimais          ║
-		-- ║    decimais= 1,      -- quantas casas decimais          ║
-		-- ║    unidade = "",     -- sufixo ex: "ms", "x", "%"       ║
-		-- ║  }                                                      ║
-		-- ╚══════════════════════════════════════════════════════════╝
 		function Aba:CriarSlider(texto, minV, maxV, padrao, callback, config)
 			config = config or {}
 			local step     = config.step     or 1
@@ -1305,13 +1360,7 @@ function Hub.novo(nome, tema, velocidade)
 			local unidade  = config.unidade  or ""
 
 			local function Arredondar(v)
-				if useFloat then
-					local fator = 10^decimais
-					return math.floor(v/step + 0.5)*step
-					-- snap ao step mas mantém float
-				else
-					return math.floor(v/step + 0.5)*step
-				end
+				return math.floor(v/step + 0.5)*step
 			end
 			local function Formatar(v)
 				v = math.clamp(v, minV, maxV)
@@ -1327,7 +1376,6 @@ function Hub.novo(nome, tema, velocidade)
 			local fr=F({Size=UDim2.new(1,-6,0,SLH), BackgroundColor3=C.Cartao, LayoutOrder=PO(), Parent=pagina})
 			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
 
-			-- labels de label + valor
 			local labelY = IS_MOBILE and 10 or 9
 			L({Size=UDim2.new(0.58,0,0,20), Position=UDim2.new(0,14,0,labelY),
 				Text=texto, TextColor3=C.Texto, Font=Enum.Font.Gotham, TextSize=13,
@@ -1338,7 +1386,6 @@ function Hub.novo(nome, tema, velocidade)
 				TextSize=13, TextXAlignment=Enum.TextXAlignment.Right, Parent=fr})
 			RC(lblV,"TextColor3","Destaque")
 
-			-- min/max hints
 			local hintY = IS_MOBILE and 30 or 28
 			L({Size=UDim2.new(0,30,0,12), Position=UDim2.new(0,14,0,hintY),
 				Text=Formatar(minV), TextColor3=C.Fraco, Font=Enum.Font.Gotham, TextSize=9,
@@ -1347,27 +1394,23 @@ function Hub.novo(nome, tema, velocidade)
 				Text=Formatar(maxV), TextColor3=C.Fraco, Font=Enum.Font.Gotham, TextSize=9,
 				TextXAlignment=Enum.TextXAlignment.Right, Parent=fr})
 
-			-- trilha
 			local trilhaY = IS_MOBILE and 50 or 47
 			local trilha=F({Size=UDim2.new(1,-28,0,6), Position=UDim2.new(0,14,0,trilhaY),
 				BackgroundColor3=C.Item, Parent=fr})
 			RC(trilha,"BackgroundColor3","Item"); Cantos(trilha,99)
 
-			-- fill com gradiente
 			local pct = (val-minV)/(maxV-minV)
 			local fill=F({Size=UDim2.new(pct,0,1,0), BackgroundColor3=C.Destaque, Parent=trilha})
 			Cantos(fill,99); RC(fill,"BackgroundColor3","Destaque")
 			local fillGrad=Grad(fill,C.DestaqueV,C.Destaque,0); RegGrad(fillGrad,"DestaqueV","Destaque",0)
 			if isRainbow then AddRainbow(fill,"BackgroundColor3",0.12) end
 
-			-- bola
 			local BOLA = IS_MOBILE and 20 or 17
 			local bola=F({Size=UDim2.new(0,BOLA,0,BOLA), Position=UDim2.new(pct,0,0.5,0),
 				AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=Color3.new(1,1,1), ZIndex=3, Parent=trilha})
 			Cantos(bola,99)
 			local bolaBrd=Stroke(bola,C.Destaque,2,0.25); RC(bolaBrd,"Color","Destaque")
 
-			-- tooltip acima da bola
 			local tooltip = F({Size=UDim2.new(0,44,0,20), AnchorPoint=Vector2.new(0.5,1),
 				Position=UDim2.new(pct,0,0,-6), BackgroundColor3=C.Destaque,
 				ZIndex=6, Visible=false, Parent=trilha})
@@ -1376,7 +1419,6 @@ function Hub.novo(nome, tema, velocidade)
 				TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold,
 				TextSize=10, ZIndex=7, Parent=tooltip})
 
-			-- hitbox
 			local hitbox=F({Size=UDim2.new(1,0,0,IS_MOBILE and 36 or 28),
 				Position=UDim2.new(0,0,0.5,-(IS_MOBILE and 18 or 14)),
 				BackgroundTransparency=1, ZIndex=5, Parent=trilha})
@@ -1433,13 +1475,7 @@ function Hub.novo(nome, tema, velocidade)
 			return obj
 		end
 
-		-- ╔══════════════════════════════════════════════════════════╗
-		-- ║  CriarDropdown v3.0 — parâmetros diretos                ║
-		-- ║  CriarDropdown(texto, opcoes, callback,                 ║
-		-- ║    multi, search, maxVisible, placeholder)              ║
-		-- ╚══════════════════════════════════════════════════════════╝
 		function Aba:CriarDropdown(texto, opcoes, callback, multi, search, maxVisible, placeholder)
-			-- compatibilidade: se 4º arg for tabela, lê como config antiga
 			if type(multi) == "table" then
 				local cfg = multi
 				multi       = cfg.multi
@@ -1564,7 +1600,6 @@ function Hub.novo(nome, tema, velocidade)
 					local ativo = multiSelect and selMulti[op]
 						or (not multiSelect and op==selSimples)
 
-					-- container do item (evita flicker de hover nos labels filhos)
 					local it = Instance.new("TextButton")
 					it.Size=UDim2.new(1,0,0,IHd)
 					it.BackgroundColor3 = ativo and C.BotaoFundo or C.Item
@@ -1572,10 +1607,8 @@ function Hub.novo(nome, tema, velocidade)
 					it.AutoButtonColor=false; it.ZIndex=3; it.Parent=listaHolder
 					Cantos(it,8)
 
-					-- borda sutil no item
 					local itBrd = Stroke(it, ativo and C.Destaque or C.Borda, 1, ativo and 0.5 or 0.7)
 
-					-- label do texto (não bloqueia eventos do pai)
 					local itLbl = L({
 						Size=UDim2.new(1,-36,1,0), Position=UDim2.new(0,12,0,0),
 						Text=op,
@@ -1592,7 +1625,6 @@ function Hub.novo(nome, tema, velocidade)
 
 					table.insert(todosItens, {btn=it, lbl=itLbl, brd=itBrd, op=op, chk=chk})
 
-					-- hover limpo: só no TextButton, sem conflito de labels
 					it.MouseEnter:Connect(function()
 						local isAtivo = multiSelect and selMulti[op] or (not multiSelect and op==selSimples)
 						if not isAtivo then
@@ -1657,7 +1689,6 @@ function Hub.novo(nome, tema, velocidade)
 				end)
 			end
 
-			-- lista começa escondida (sem ClipsDescendants precisamos controlar manualmente)
 			listaHolder.Visible = false
 			if searchBox then searchBox.Parent.Visible = false end
 
@@ -1697,14 +1728,9 @@ function Hub.novo(nome, tema, velocidade)
 				if not aberto then Tw(fr,0.12,{BackgroundColor3=C.Cartao}):Play() end
 			end)
 
-			-- .valor atualiza automaticamente sempre que a seleção muda
-			-- simples → string        ex: drop.valor == "Maçã"
-			-- multi   → tabela/array  ex: drop.valor == {"Voar", "ESP"}
 			local obj = {}
 			obj.valor = multiSelect and {} or selSimples
 
-			-- SyncValor é chamada diretamente nos cliques (via _syncValorRef)
-			-- e nos métodos abaixo — sem patch em ConstruirItens
 			local function SyncValor()
 				if multiSelect then
 					local t = {}
