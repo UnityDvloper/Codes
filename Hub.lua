@@ -1,11 +1,4 @@
--- ╔══════════════════════════════════════════════════════════╗
--- ║               HUB UI — MÓDULO v6.6                      ║
--- ║  + CriarDropdown v3.0 — parâmetros diretos              ║
--- ║  + Botão fechar com X unicode limpo                     ║
--- ║  + Slider v2 — steps, snap, valor float, label unidade  ║
--- ║  + dropdown.valor — propriedade sempre atualizada       ║
--- ║  + ColorPicker v2.1 — correção de clique e drag         ║
--- ╚══════════════════════════════════════════════════════════╝
+-- Hub UI V 6.6
 
 local Hub = {}
 Hub.__index = Hub
@@ -154,7 +147,7 @@ local function IniciarRainbow(obj, prop, vel, rodando)
 	return conn
 end
 
-function Hub.novo(nome, tema, velocidade)
+function Hub.novo(nome, tema)
 	local self       = setmetatable({}, Hub)
 	self._conexoes   = {}
 	self._rodando    = true
@@ -262,7 +255,7 @@ function Hub.novo(nome, tema, velocidade)
 
 	local btnX = Instance.new("TextButton")
 	btnX.Size=UDim2.new(0,BW,0,BH); btnX.Position=UDim2.new(1,-(BW+8),0.5,-BH/2)
-	btnX.Text="✕"; btnX.Font=Enum.Font.GothamBold; btnX.TextSize=14
+	btnX.Text="X"; btnX.Font=Enum.Font.Arial; btnX.TextSize=14
 	btnX.TextColor3=Color3.new(1,1,1); btnX.BackgroundColor3=C.Perigo
 	btnX.AutoButtonColor=false; btnX.ZIndex=12; btnX.Parent=topbar
 	Cantos(btnX,99); RegCor(btnX,"BackgroundColor3","Perigo")
@@ -293,7 +286,6 @@ function Hub.novo(nome, tema, velocidade)
 	btnMin.MouseButton1Click:Connect(function() minimizado=not minimizado; AtualizarMinimizado() end)
 
 	local drag,dragStart,posStart = false,nil,nil
-	local fatorVel = (velocidade == "Lento") and 0.7 or 1
 	local dragArea
 	if IS_MOBILE then
 		dragArea = Instance.new("TextButton")
@@ -307,7 +299,7 @@ function Hub.novo(nome, tema, velocidade)
 	local function AtualizarDrag(pos)
 		if not drag then return end
 		local d=pos-dragStart
-		janela.Position=UDim2.new(posStart.X.Scale,posStart.X.Offset+d.X*fatorVel,posStart.Y.Scale,posStart.Y.Offset+d.Y*fatorVel)
+		janela.Position=UDim2.new(posStart.X.Scale,posStart.X.Offset+d.X,posStart.Y.Scale,posStart.Y.Offset+d.Y)
 	end
 	local function EncerrarDrag() drag=false end
 	dragArea.InputBegan:Connect(function(e)
@@ -342,6 +334,7 @@ function Hub.novo(nome, tema, velocidade)
 	function self:AoFechar(fn) self._aoFechar=fn end
 	function self:Fechar(p) Fechar(p) end
 	function self:RegistrarConexao(c) table.insert(self._conexoes,c); return c end
+	function self:Destruir() Fechar(true) end
 
 	local _todasTabsRef = nil
 
@@ -393,220 +386,600 @@ function Hub.novo(nome, tema, velocidade)
 	notifLayout.Padding = UDim.new(0, 6)
 	Pad(notifHolder, 0, IS_MOBILE and 6 or 10, 0, 0)
 
+	local NOTIF_W     = IS_MOBILE and math.min(JANELA_W - 20, 270) or 340
+	local NOTIF_MAX   = 6
+	local NOTIF_GAP   = 8
+	local NOTIF_PAD_B = IS_MOBILE and 8 or 12
+
 	local NOTIF_TIPOS = {
-		sucesso = {icone="✓", cor=Color3.fromRGB(48,205,125),  bg=Color3.fromRGB(20,55,35)},
-		erro    = {icone="✕", cor=Color3.fromRGB(220,65,65),   bg=Color3.fromRGB(55,18,18)},
-		aviso   = {icone="!", cor=Color3.fromRGB(255,185,35),  bg=Color3.fromRGB(55,42,12)},
-		info    = {icone="i", cor=Color3.fromRGB(65,155,255),  bg=Color3.fromRGB(16,38,68)},
+		sucesso = {
+			icone = "✓",
+			cor   = Color3.fromRGB(56,  215, 140),
+			corV  = Color3.fromRGB(105, 240, 175),
+			corD  = Color3.fromRGB(30,  160,  95),
+			bg1   = Color3.fromRGB(8,   30,  18 ),
+			bg2   = Color3.fromRGB(13,  42,  26 ),
+			glow  = Color3.fromRGB(56,  215, 140),
+		},
+		erro = {
+			icone = "X",
+			cor   = Color3.fromRGB(235,  70,  70),
+			corV  = Color3.fromRGB(255, 115, 115),
+			corD  = Color3.fromRGB(175,  38,  38),
+			bg1   = Color3.fromRGB(28,   8,   8 ),
+			bg2   = Color3.fromRGB(42,  13,  13 ),
+			glow  = Color3.fromRGB(235,  70,  70),
+		},
+		aviso = {
+			icone = "!",
+			cor   = Color3.fromRGB(255, 195,  45),
+			corV  = Color3.fromRGB(255, 225, 110),
+			corD  = Color3.fromRGB(195, 140,  15),
+			bg1   = Color3.fromRGB(28,  22,   4 ),
+			bg2   = Color3.fromRGB(42,  32,   8 ),
+			glow  = Color3.fromRGB(255, 195,  45),
+		},
+		info = {
+			icone = "i",
+			cor   = Color3.fromRGB(75,  165, 255),
+			corV  = Color3.fromRGB(130, 200, 255),
+			corD  = Color3.fromRGB(40,  110, 200),
+			bg1   = Color3.fromRGB(6,   18,  38 ),
+			bg2   = Color3.fromRGB(10,  26,  54 ),
+			glow  = Color3.fromRGB(75,  165, 255),
+		},
 	}
 
-	function self:Notificar(titulo, mensagem, tipo, duracao)
-		tipo    = tipo    or "info"
-		duracao = duracao or 3.5
-		local cfg    = NOTIF_TIPOS[tipo] or NOTIF_TIPOS.info
-		local icSize = IS_MOBILE and 26 or 30
-		local minH   = IS_MOBILE and 54 or 64
+	local notifFila = {}
 
-		local card = F({
-			Size=UDim2.new(1,0,0,minH),
-			BackgroundColor3=cfg.bg,
-			ClipsDescendants=true,
-			ZIndex=301, Parent=notifHolder,
-		})
-		Cantos(card, 12)
-		local cardBrd = Stroke(card, cfg.cor, 1, 0.45)
-		local lateral = F({
-			Size=UDim2.new(0,4,1,0),
-			BackgroundColor3=cfg.cor,
-			ZIndex=303, Parent=card,
-		})
-		Cantos(lateral, 4)
-		local cardGrad = Instance.new("UIGradient")
-		cardGrad.Color = ColorSequence.new(
-			Color3.fromRGB(255,255,255),
-			Color3.fromRGB(180,180,180)
+	local notifHolder = F({
+		Size                   = UDim2.new(0, NOTIF_W, 1, -20),
+		Position               = UDim2.new(1, -(NOTIF_W + 12), 0, 10),
+		BackgroundTransparency = 1,
+		ZIndex                 = 300,
+		Parent                 = gui,
+	})
+
+	local function Lerp3(a, b, t)
+		return Color3.new(
+			a.R + (b.R - a.R) * t,
+			a.G + (b.G - a.G) * t,
+			a.B + (b.B - a.B) * t
 		)
-		cardGrad.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.88),
-			NumberSequenceKeypoint.new(1, 0.96),
+	end
+
+	local function ReposicionarFila()
+		local baseY = notifHolder.AbsoluteSize.Y - NOTIF_PAD_B
+		for i = #notifFila, 1, -1 do
+			local e = notifFila[i]
+			baseY = baseY - e.altura
+			local targetOffsetY = baseY - notifHolder.AbsoluteSize.Y
+			Tw(e.card, 0.32, {
+				Position = UDim2.new(0, 0, 1, targetOffsetY),
+			}, Enum.EasingStyle.Quart, Enum.EasingDirection.Out):Play()
+			baseY = baseY - NOTIF_GAP
+		end
+	end
+
+	local function DispensarCard(card, cardBrd, shimmer, imediato)
+		for i, e in ipairs(notifFila) do
+			if e.card == card then table.remove(notifFila, i); break end
+		end
+		ReposicionarFila()
+
+		local t = imediato and 0.10 or 0.30
+		Tw(card, t, {
+			Position           = UDim2.new(0, NOTIF_W + 28, card.Position.Y.Scale, card.Position.Y.Offset),
+			BackgroundTransparency = 1,
+		}, Enum.EasingStyle.Quart, Enum.EasingDirection.In):Play()
+		if cardBrd then Tw(cardBrd, t, { Transparency = 1 }):Play() end
+		if shimmer and typeof(shimmer) == "RBXScriptConnection" then
+			task.delay(t, function() pcall(function() shimmer:Disconnect() end) end)
+		end
+		task.delay(t + 0.06, function()
+			if card and card.Parent then card:Destroy() end
+		end)
+	end
+
+	function self:Notificar(titulo, mensagem, tipo, duracao, config)
+		tipo     = tipo     or "info"
+		duracao  = duracao  or 3.5
+		config   = config   or {}
+		local cfg = NOTIF_TIPOS[tipo] or NOTIF_TIPOS.info
+
+		local aoClicar   = config.aoClicar
+		local acoes      = config.acoes
+		local semAuto    = config.semAuto
+		local icCustom   = config.icone
+
+		if #notifFila >= NOTIF_MAX then
+			local oldest = notifFila[1]
+			if oldest then DispensarCard(oldest.card, oldest.brd, oldest.shimmer, true) end
+		end
+
+		local icSize   = IS_MOBILE and 28 or 32
+		local minH     = IS_MOBILE and 58 or 68
+		local acaoH    = (acoes and #acoes > 0) and (IS_MOBILE and 34 or 30) or 0
+		local shimmerConn = nil
+
+		local card = Instance.new("TextButton")
+		card.Size                   = UDim2.new(1, 0, 0, minH)
+		card.Position               = UDim2.new(0, NOTIF_W + 28, 1, -(minH + NOTIF_PAD_B))
+		card.BackgroundColor3       = cfg.bg2
+		card.AutoButtonColor        = false
+		card.ClipsDescendants        = true
+		card.ZIndex                 = 301
+		card.Text                   = ""
+		card.Parent                 = notifHolder
+		Cantos(card, 14)
+
+		do
+			local g = Instance.new("UIGradient")
+			g.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0,   cfg.bg1),
+				ColorSequenceKeypoint.new(0.6, cfg.bg2),
+				ColorSequenceKeypoint.new(1,   Lerp3(cfg.bg2, cfg.cor, 0.06)),
+			})
+			g.Rotation = 135; g.Parent = card
+		end
+
+		local cardBrd = Stroke(card, cfg.cor, 1, 0.25)
+
+		local glowFr = F({
+			Size                   = UDim2.new(1, 10, 1, 10),
+			Position               = UDim2.new(0, -5, 0, -5),
+			BackgroundColor3       = cfg.glow,
+			BackgroundTransparency = 0.88,
+			ZIndex                 = 300,
+			Parent                 = card,
 		})
-		cardGrad.Rotation = 0
-		cardGrad.Parent   = card
+		Cantos(glowFr, 18)
+
+		-- ── Reflexo glass (topo) ──────────────────────────────────────────
+		local glassShine = F({
+			Size                   = UDim2.new(1, 0, 0, 22),
+			Position               = UDim2.new(0, 0, 0, 0),
+			BackgroundColor3       = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.90,
+			ZIndex                 = 310,
+			Parent                 = card,
+		})
+		Cantos(glassShine, 14)
+		do
+			local g = Instance.new("UIGradient")
+			g.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0,   0   ),
+				NumberSequenceKeypoint.new(0.5, 0.04),
+				NumberSequenceKeypoint.new(1,   1   ),
+			})
+			g.Rotation = 90; g.Parent = glassShine
+		end
+
+		local shimmerFr = F({
+			Size                   = UDim2.new(0, 60, 1, 20),
+			Position               = UDim2.new(0, -80, 0, -10),
+			BackgroundColor3       = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.82,
+			Rotation               = 22,
+			ZIndex                 = 311,
+			Parent                 = card,
+		})
+		do
+			local g = Instance.new("UIGradient")
+			g.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0,   1   ),
+				NumberSequenceKeypoint.new(0.45, 0.55),
+				NumberSequenceKeypoint.new(0.5,  0.45),
+				NumberSequenceKeypoint.new(0.55, 0.55),
+				NumberSequenceKeypoint.new(1,   1   ),
+			})
+			g.Rotation = 0; g.Parent = shimmerFr
+		end
+		task.delay(0.4, function()
+			if not card.Parent then return end
+			Tw(shimmerFr, 0.55, {
+				Position = UDim2.new(0, NOTIF_W + 20, 0, -10),
+			}, Enum.EasingStyle.Quart, Enum.EasingDirection.Out):Play()
+		end)
+
+		local lateral = F({
+			Size             = UDim2.new(0, 3, 1, -10),
+			Position         = UDim2.new(0, 1, 0, 5),
+			BackgroundColor3 = cfg.cor,
+			ZIndex           = 308,
+			Parent           = card,
+		})
+		Cantos(lateral, 99)
+		do
+			local g = Instance.new("UIGradient")
+			g.Color    = ColorSequence.new(cfg.corV, cfg.corD)
+			g.Rotation = 90; g.Parent = lateral
+		end
+		task.spawn(function()
+			local alive = true
+			card.AncestryChanged:Connect(function() alive = false end)
+			while alive and card.Parent do
+				Tw(lateral, 1.2, { BackgroundColor3 = cfg.corV }):Play()
+				task.wait(1.2)
+				if not alive or not card.Parent then break end
+				Tw(lateral, 1.2, { BackgroundColor3 = cfg.corD }):Play()
+				task.wait(1.2)
+			end
+		end)
+
+		local halo2 = F({
+			Size                   = UDim2.new(0, icSize + 26, 0, icSize + 26),
+			Position               = UDim2.new(0, 14, 0.5, -(icSize + 26)/2),
+			BackgroundColor3       = cfg.cor,
+			BackgroundTransparency = 0.86,
+			ZIndex                 = 302,
+			Parent                 = card,
+		})
+		Cantos(halo2, 99)
+
+		local halo1 = F({
+			Size                   = UDim2.new(0, icSize + 14, 0, icSize + 14),
+			Position               = UDim2.new(0, 20, 0.5, -(icSize + 14)/2),
+			BackgroundColor3       = cfg.cor,
+			BackgroundTransparency = 0.76,
+			ZIndex                 = 303,
+			Parent                 = card,
+		})
+		Cantos(halo1, 99)
 
 		local ic = F({
-			Size=UDim2.new(0,icSize,0,icSize),
-			Position=UDim2.new(0,14,0.5,-(icSize/2)),
-			BackgroundColor3=cfg.cor,
-			ZIndex=304, Parent=card,
+			Size             = UDim2.new(0, icSize, 0, icSize),
+			Position         = UDim2.new(0, 26, 0.5, -icSize/2),
+			BackgroundColor3 = cfg.cor,
+			ZIndex           = 305,
+			Parent           = card,
 		})
 		Cantos(ic, 99)
-		local icGlow = F({
-			Size=UDim2.new(1.6,0,1.6,0),
-			Position=UDim2.new(0.5,0,0.5,0),
-			AnchorPoint=Vector2.new(0.5,0.5),
-			BackgroundColor3=cfg.cor,
-			BackgroundTransparency=0.78,
-			ZIndex=303, Parent=ic,
-		})
-		Cantos(icGlow,99)
-		L({
-			Size=UDim2.new(1,0,1,0),
-			Text=cfg.icone,
-			TextColor3=Color3.new(1,1,1),
-			Font=Enum.Font.GothamBold,
-			TextSize=IS_MOBILE and 12 or 13,
-			ZIndex=305, Parent=ic,
-		})
+		Stroke(ic, cfg.corV, 1, 0.35)
+		do
+			local g = Instance.new("UIGradient")
+			g.Color    = ColorSequence.new(cfg.corV, cfg.corD)
+			g.Rotation = 135; g.Parent = ic
+		end
+		do
+			local ics = F({
+				Size                   = UDim2.new(0.9, 0, 0.45, 0),
+				Position               = UDim2.new(0.05, 0, 0, 0),
+				BackgroundColor3       = Color3.new(1, 1, 1),
+				BackgroundTransparency = 0.75,
+				ZIndex                 = 307,
+				Parent                 = ic,
+			})
+			Cantos(ics, 99)
+			local g = Instance.new("UIGradient")
+			g.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0,   0.2),
+				NumberSequenceKeypoint.new(1,   1  ),
+			})
+			g.Rotation = 90; g.Parent = ics
+		end
 
-		local txtX = 14 + icSize + 12
+		if (icCustom == nil) and (tipo == "erro") then
+			local esp = IS_MOBILE and 3 or 3
+			local comp = IS_MOBILE and 13 or 15
+			local l1 = F({
+				Size=UDim2.new(0,comp,0,esp), Position=UDim2.new(0.5,-comp/2,0.5,-esp/2),
+				BackgroundColor3=Color3.new(1,1,1), Rotation=45, ZIndex=308, Parent=ic,
+			}); Cantos(l1,99)
+			local l2 = F({
+				Size=UDim2.new(0,comp,0,esp), Position=UDim2.new(0.5,-comp/2,0.5,-esp/2),
+				BackgroundColor3=Color3.new(1,1,1), Rotation=-45, ZIndex=308, Parent=ic,
+			}); Cantos(l2,99)
+		else
+			L({
+				Size=UDim2.new(1,0,1,0), Text=icCustom or cfg.icone,
+				TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold,
+				TextSize=IS_MOBILE and 13 or 15, ZIndex=308, Parent=ic,
+			})
+		end
+
+		local txtX    = 26 + icSize + 13
+		local txtMaxW = -(txtX + 16)
 
 		local lblTitulo = L({
-			Size=UDim2.new(1,-(txtX+10),0,16),
-			Position=UDim2.new(0,txtX,0,0),
-			Text=titulo,
-			TextColor3=Color3.new(1,1,1),
-			Font=Enum.Font.GothamBold,
-			TextSize=IS_MOBILE and 11 or 12,
-			TextXAlignment=Enum.TextXAlignment.Left,
-			TextWrapped=true,
-			AutomaticSize=Enum.AutomaticSize.Y,
-			ZIndex=302, Parent=card,
+			Size             = UDim2.new(1, txtMaxW, 0, 16),
+			Position         = UDim2.new(0, txtX, 0, 0),
+			Text             = titulo,
+			TextColor3       = Color3.new(1, 1, 1),
+			Font             = Enum.Font.GothamBold,
+			TextSize         = IS_MOBILE and 12 or 13,
+			TextXAlignment   = Enum.TextXAlignment.Left,
+			TextWrapped      = true,
+			AutomaticSize    = Enum.AutomaticSize.Y,
+			ZIndex           = 306,
+			Parent           = card,
 		})
 		local lblMsg = L({
-			Size=UDim2.new(1,-(txtX+10),0,14),
-			Position=UDim2.new(0,txtX,0,0),
-			Text=mensagem or "",
-			TextColor3=cfg.cor,
-			Font=Enum.Font.Gotham,
-			TextSize=IS_MOBILE and 10 or 11,
-			TextXAlignment=Enum.TextXAlignment.Left,
-			TextWrapped=true,
-			AutomaticSize=Enum.AutomaticSize.Y,
-			ZIndex=302, Parent=card,
+			Size             = UDim2.new(1, txtMaxW, 0, 14),
+			Position         = UDim2.new(0, txtX, 0, 0),
+			Text             = mensagem or "",
+			TextColor3       = cfg.corV,
+			Font             = Enum.Font.Gotham,
+			TextSize         = IS_MOBILE and 10 or 11,
+			TextXAlignment   = Enum.TextXAlignment.Left,
+			TextWrapped      = true,
+			AutomaticSize    = Enum.AutomaticSize.Y,
+			ZIndex           = 306,
+			Parent           = card,
 		})
 
 		local progBg = F({
-			Size=UDim2.new(1,0,0,3),
-			Position=UDim2.new(0,0,1,-3),
-			BackgroundColor3=Color3.fromRGB(0,0,0),
-			BackgroundTransparency=0.6,
-			ZIndex=304, Parent=card,
+			Size                   = UDim2.new(1, -4, 0, 3),
+			Position               = UDim2.new(0, 2, 1, -4),
+			BackgroundColor3       = Color3.fromRGB(0, 0, 0),
+			BackgroundTransparency = 0.50,
+			ZIndex                 = 307,
+			Parent                 = card,
 		})
-		local prog = F({
-			Size=UDim2.new(1,0,1,0),
-			BackgroundColor3=cfg.cor,
-			ZIndex=305, Parent=progBg,
-		})
-		local progGrad = Instance.new("UIGradient")
-		progGrad.Color    = ColorSequence.new(cfg.cor, Color3.new(1,1,1))
-		progGrad.Rotation = 0
-		progGrad.Parent   = prog
+		Cantos(progBg, 99)
 
-		card.Position = UDim2.new(0, NOTIF_W+20, 0, 0)
+		local prog = F({
+			Size             = UDim2.new(1, 0, 1, 0),
+			BackgroundColor3 = cfg.cor,
+			ZIndex           = 308,
+			Parent           = progBg,
+		})
+		Cantos(prog, 99)
+		do
+			local g = Instance.new("UIGradient")
+			g.Color    = ColorSequence.new(cfg.corD, cfg.corV)
+			g.Rotation = 0; g.Parent = prog
+		end
+		local progDot = F({
+			Size                   = UDim2.new(0, 5, 0, 5),
+			Position               = UDim2.new(1, -5, 0.5, -2),
+			BackgroundColor3       = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.20,
+			ZIndex                 = 309,
+			Parent                 = prog,
+		})
+		Cantos(progDot, 99)
+
+		local btnClose = Instance.new("TextButton")
+		btnClose.Size                   = UDim2.new(0, 20, 0, 20)
+		btnClose.Position               = UDim2.new(1, -24, 0, 6)
+		btnClose.BackgroundColor3       = Color3.fromRGB(255, 255, 255)
+		btnClose.BackgroundTransparency = 1
+		btnClose.Text                   = "×"
+		btnClose.Font                   = Enum.Font.GothamBold
+		btnClose.TextSize               = 14
+		btnClose.TextColor3             = Color3.new(1, 1, 1)
+		btnClose.TextTransparency       = 0.55
+		btnClose.AutoButtonColor        = false
+		btnClose.ZIndex                 = 315
+		btnClose.Parent                 = card
+		Cantos(btnClose, 99)
+		local closeBrd = Stroke(btnClose, Color3.new(1, 1, 1), 1, 0.72)
+
+		btnClose.BackgroundTransparency = 1
+		closeBrd.Transparency           = 1
+		btnClose.TextTransparency       = 1
+
+		if acoes and #acoes > 0 then
+			local totalBtns = math.min(#acoes, 2)
+			local gap2      = 6
+			local btnW = (NOTIF_W - txtX - 16 - (totalBtns - 1) * gap2) / totalBtns
+
+			for i, acao in ipairs(acoes) do
+				if i > 2 then break end
+				local bx = txtX + (i - 1) * (btnW + gap2)
+				local isPrimary = (i == 1)
+
+				local ab = Instance.new("TextButton")
+				ab.Size                  = UDim2.new(0, btnW, 0, acaoH - 7)
+				ab.Position              = UDim2.new(0, bx, 1, -(acaoH - 1))
+				ab.BackgroundColor3      = isPrimary and cfg.cor or Color3.fromRGB(28, 28, 42)
+				ab.TextColor3            = isPrimary and Color3.fromRGB(8, 8, 16) or cfg.corV
+				ab.Text                  = acao.label or "OK"
+				ab.Font                  = Enum.Font.GothamBold
+				ab.TextSize              = IS_MOBILE and 10 or 11
+				ab.AutoButtonColor       = false
+				ab.ZIndex                = 312
+				ab.Parent                = card
+				Cantos(ab, 7)
+				if not isPrimary then
+					Stroke(ab, cfg.cor, 1, 0.55)
+				end
+				if isPrimary then
+					do
+						local g = Instance.new("UIGradient")
+						g.Color    = ColorSequence.new(cfg.corV, cfg.cor)
+						g.Rotation = 90; g.Parent = ab
+					end
+				end
+				ab.MouseEnter:Connect(function()
+					Tw(ab, 0.1, {
+						BackgroundColor3 = isPrimary
+							and Lerp3(cfg.cor, Color3.new(1,1,1), 0.18)
+							or Color3.fromRGB(40, 40, 60),
+					}):Play()
+					Tw(ab, 0.08, { Size = UDim2.new(0, btnW, 0, acaoH - 5) }):Play()
+				end)
+				ab.MouseLeave:Connect(function()
+					Tw(ab, 0.1, {
+						BackgroundColor3 = isPrimary and cfg.cor or Color3.fromRGB(28, 28, 42),
+					}):Play()
+					Tw(ab, 0.1, { Size = UDim2.new(0, btnW, 0, acaoH - 7) }):Play()
+				end)
+				ab.MouseButton1Down:Connect(function()
+					Tw(ab, 0.06, { Size = UDim2.new(0, btnW - 4, 0, acaoH - 10) }):Play()
+				end)
+				ab.MouseButton1Up:Connect(function()
+					Tw(ab, 0.12, { Size = UDim2.new(0, btnW, 0, acaoH - 7) },
+					Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+				end)
+				ab.MouseButton1Click:Connect(function()
+					if acao.fn then pcall(acao.fn) end
+					DispensarCard(card, cardBrd, shimmerConn)
+				end)
+			end
+		end
+
+		card.MouseEnter:Connect(function()
+			Tw(card,     0.14, { BackgroundColor3 = Lerp3(cfg.bg2, cfg.cor, 0.04) }):Play()
+			Tw(cardBrd,  0.14, { Transparency = 0.05 }):Play()
+			Tw(glowFr,   0.14, { BackgroundTransparency = 0.78 }):Play()
+
+			Tw(btnClose, 0.14, { TextTransparency = 0 }):Play()
+			Tw(closeBrd, 0.14, { Transparency = 0.40 }):Play()
+		end)
+		card.MouseLeave:Connect(function()
+			Tw(card,     0.18, { BackgroundColor3 = cfg.bg2 }):Play()
+			Tw(cardBrd,  0.18, { Transparency = 0.25 }):Play()
+			Tw(glowFr,   0.18, { BackgroundTransparency = 0.88 }):Play()
+			Tw(btnClose, 0.14, { TextTransparency = 1 }):Play()
+			Tw(closeBrd, 0.14, { Transparency = 1 }):Play()
+		end)
+		card.MouseButton1Click:Connect(function()
+			if aoClicar then
+				pcall(aoClicar)
+				DispensarCard(card, cardBrd, shimmerConn)
+			end
+		end)
+		btnClose.MouseEnter:Connect(function()
+			Tw(btnClose, 0.1, { BackgroundColor3 = Color3.fromRGB(220, 60, 60), BackgroundTransparency = 0 }):Play()
+			Tw(closeBrd, 0.1, { Transparency = 1 }):Play()
+		end)
+		btnClose.MouseLeave:Connect(function()
+			Tw(btnClose, 0.1, { BackgroundTransparency = 1 }):Play()
+		end)
+		btnClose.MouseButton1Click:Connect(function()
+			DispensarCard(card, cardBrd, shimmerConn)
+		end)
+
+		local entrada = { card = card, brd = cardBrd, shimmer = nil, altura = minH }
+		table.insert(notifFila, entrada)
 
 		task.defer(function()
 			if not card.Parent then return end
 
-			local topPad = IS_MOBILE and 8 or 10
-			local gap    = 3
-			local botPad = IS_MOBILE and 10 or 12
-			local altTit = lblTitulo.TextBounds.Y
-			local altMsg = lblMsg.TextBounds.Y
-			local altTotal = math.max(topPad + altTit + gap + altMsg + botPad + 3, minH)
+			local topPad = IS_MOBILE and 9  or 11
+			local gap    = 4
+			local botPad = IS_MOBILE and 11 or 14
 
-			card.Size = UDim2.new(1,0,0,altTotal)
+			local altTit   = lblTitulo.TextBounds.Y
+			local altMsg   = lblMsg.TextBounds.Y
+			local altTotal = math.max(
+				topPad + altTit + gap + altMsg + botPad + 4 + acaoH,
+				minH
+			)
+			card.Size      = UDim2.new(1, 0, 0, altTotal)
+			entrada.altura = altTotal
 
-			local midY = altTotal / 2
-			ic.Position    = UDim2.new(0, 14, 0, midY - icSize/2)
+			local midY = (altTotal - acaoH) / 2
+			ic.Position    = UDim2.new(0, 26,   0, midY - icSize/2)
+			halo1.Position = UDim2.new(0, 20,   0, midY - (icSize+14)/2)
+			halo2.Position = UDim2.new(0, 14,   0, midY - (icSize+26)/2)
+
 			lblTitulo.Position = UDim2.new(0, txtX, 0, topPad)
 			lblMsg.Position    = UDim2.new(0, txtX, 0, topPad + altTit + gap)
 
-			Tw(card, 0.35, {Position=UDim2.new(0,0,0,0)},
-				Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+			ReposicionarFila()
 
-			task.delay(0.1, function()
+			Tw(card, 0.42, {
+				Position = UDim2.new(0, 0, card.Position.Y.Scale, card.Position.Y.Offset),
+			}, Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+			Tw(glowFr, 0.42, { BackgroundTransparency = 0.88 }):Play()
+
+			ic.Size = UDim2.new(0, 0, 0, 0)
+			task.delay(0.22, function()
 				if not ic.Parent then return end
-				Tw(ic, 0.12, {Size=UDim2.new(0,icSize+5,0,icSize+5)}):Play()
-				task.delay(0.12, function()
+				Tw(ic, 0.22, { Size = UDim2.new(0, icSize + 8, 0, icSize + 8) },
+				Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+				task.delay(0.22, function()
 					if not ic.Parent then return end
-					Tw(ic, 0.18, {Size=UDim2.new(0,icSize,0,icSize)},
-						Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+					Tw(ic, 0.16, { Size = UDim2.new(0, icSize, 0, icSize) },
+					Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+				end)
+			end)
+
+			task.delay(0.22, function()
+				if not halo1.Parent then return end
+				Tw(halo1, 0.35, { BackgroundTransparency = 0.55 }):Play()
+				Tw(halo2, 0.35, { BackgroundTransparency = 0.72 }):Play()
+				task.delay(0.35, function()
+					if not halo1.Parent then return end
+					Tw(halo1, 0.5,  { BackgroundTransparency = 0.76 }):Play()
+					Tw(halo2, 0.5,  { BackgroundTransparency = 0.86 }):Play()
 				end)
 			end)
 
 			task.spawn(function()
-				Tw(prog, duracao, {Size=UDim2.new(0,0,1,0)}, Enum.EasingStyle.Linear):Play()
-				task.wait(duracao)
-				if not card.Parent then return end
-				Tw(card, 0.25, {
-					Position=UDim2.new(0, NOTIF_W+20, 0, 0),
-					BackgroundTransparency=1,
-				}, Enum.EasingStyle.Quart, Enum.EasingDirection.In):Play()
-				Tw(cardBrd, 0.25, {Transparency=1}):Play()
-				task.wait(0.26)
-				if card.Parent then card:Destroy() end
+				while card and card.Parent do
+					Tw(glowFr, 1.8, { BackgroundTransparency = 0.82 },
+					Enum.EasingStyle.Sine):Play()
+					task.wait(1.8)
+					if not card.Parent then break end
+					Tw(glowFr, 1.8, { BackgroundTransparency = 0.91 },
+					Enum.EasingStyle.Sine):Play()
+					task.wait(1.8)
+				end
 			end)
+
+			if not semAuto then
+				Tw(prog, duracao, { Size = UDim2.new(0, 0, 1, 0) },
+				Enum.EasingStyle.Linear):Play()
+				task.delay(duracao, function()
+					if card and card.Parent then
+						DispensarCard(card, cardBrd, shimmerConn)
+					end
+				end)
+			else
+				progBg.Visible = false
+			end
 		end)
 	end
 
-	-- ══════════════════════════════════════════════
-	--  SIDEBAR
-	-- ══════════════════════════════════════════════
 	local pagArea, scrollTabs
 	local SW = SIDEBAR_W
 
-	local sidebar = F({
-		Size=UDim2.new(0,SW,1,0),
-		BackgroundColor3=C.Sidebar, Parent=corpoJanela,
-	})
+	local sidebar = F({Size=UDim2.new(0,SW,1,0),BackgroundColor3=C.Sidebar,Parent=corpoJanela})
 	RegCor(sidebar,"BackgroundColor3","Sidebar")
 	Cantos(sidebar,12)
-	F({Size=UDim2.new(0.5,0,1,0), BackgroundColor3=C.Sidebar, Parent=sidebar})
-	RegCor(F({Size=UDim2.new(0.5,0,1,0), BackgroundColor3=C.Sidebar, Parent=sidebar}),"BackgroundColor3","Sidebar")
+	F({Size=UDim2.new(0.5,0,1,0),BackgroundColor3=C.Sidebar,Parent=sidebar})
+	RegCor(F({Size=UDim2.new(0.5,0,1,0),BackgroundColor3=C.Sidebar,Parent=sidebar}),"BackgroundColor3","Sidebar")
 
-	local divSide = F({
-		Size=UDim2.new(0,1,1,0), Position=UDim2.new(1,-1,0,0),
-		BackgroundColor3=C.Borda, ZIndex=3, Parent=sidebar,
-	})
+	local divSide = F({Size=UDim2.new(0,1,1,0),Position=UDim2.new(1,-1,0,0),BackgroundColor3=C.Borda,ZIndex=3,Parent=sidebar})
 	RegCor(divSide,"BackgroundColor3","Borda")
 
 	local topOffsetSidebar = IS_MOBILE and 10 or 44
 	if not IS_MOBILE then
 		local lblNav = L({
-			Size=UDim2.new(1,-16,0,26), Position=UDim2.new(0,8,0,10),
-			Text="M E N U", TextColor3=C.Destaque, Font=Enum.Font.GothamBold,
-			TextSize=9, TextXAlignment=Enum.TextXAlignment.Left,
-			ZIndex=3, Parent=sidebar,
+			Size=UDim2.new(1,-16,0,26),Position=UDim2.new(0,8,0,10),
+			Text="M E N U",TextColor3=C.Destaque,Font=Enum.Font.GothamBold,
+			TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=3,Parent=sidebar,
 		})
 		RegCor(lblNav,"TextColor3","Destaque")
-		local linhMenu = F({
-			Size=UDim2.new(1,-16,0,1), Position=UDim2.new(0,8,0,36),
-			BackgroundColor3=C.Borda, ZIndex=3, Parent=sidebar,
-		})
+		local linhMenu = F({Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0,36),BackgroundColor3=C.Borda,ZIndex=3,Parent=sidebar})
 		RegCor(linhMenu,"BackgroundColor3","Borda")
 	end
 
 	scrollTabs = Instance.new("ScrollingFrame")
-	scrollTabs.Size = UDim2.new(1,0,1,-topOffsetSidebar)
-	scrollTabs.Position = UDim2.new(0,0,0,topOffsetSidebar)
-	scrollTabs.CanvasSize = UDim2.new(0,0,0,0)
-	scrollTabs.ScrollBarThickness = 0
-	scrollTabs.BackgroundTransparency = 1
-	scrollTabs.BorderSizePixel = 0
-	scrollTabs.ScrollingDirection = Enum.ScrollingDirection.Y
-	scrollTabs.Parent = sidebar
-	Pad(scrollTabs, 6, 10, IS_MOBILE and 5 or 7, IS_MOBILE and 5 or 7)
-	local lyT = Instance.new("UIListLayout", scrollTabs)
-	lyT.Padding = UDim.new(0, IS_MOBILE and 4 or 5)
-	lyT.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	scrollTabs.Size=UDim2.new(1,0,1,-topOffsetSidebar)
+	scrollTabs.Position=UDim2.new(0,0,0,topOffsetSidebar)
+	scrollTabs.CanvasSize=UDim2.new(0,0,0,0)
+	scrollTabs.ScrollBarThickness=0
+	scrollTabs.BackgroundTransparency=1
+	scrollTabs.BorderSizePixel=0
+	scrollTabs.ScrollingDirection=Enum.ScrollingDirection.Y
+	scrollTabs.Parent=sidebar
+	Pad(scrollTabs,6,10,IS_MOBILE and 5 or 7,IS_MOBILE and 5 or 7)
+	local lyT = Instance.new("UIListLayout",scrollTabs)
+	lyT.Padding=UDim.new(0,IS_MOBILE and 4 or 5)
+	lyT.HorizontalAlignment=Enum.HorizontalAlignment.Center
 	lyT:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		scrollTabs.CanvasSize = UDim2.new(0,0,0,lyT.AbsoluteContentSize.Y+20)
+		scrollTabs.CanvasSize=UDim2.new(0,0,0,lyT.AbsoluteContentSize.Y+20)
 	end)
 
 	pagArea = F({
 		Size=UDim2.new(1,-(SW+6),1,-10),
 		Position=UDim2.new(0,SW+2,0,5),
-		BackgroundTransparency=1, Parent=corpoJanela,
+		BackgroundTransparency=1,Parent=corpoJanela,
 	})
 
 	local todasTabs = {}
@@ -615,39 +988,24 @@ function Hub.novo(nome, tema, velocidade)
 
 	local function AtivarAba(e)
 		if tabAtiva == e then return end
-		local anterior = tabAtiva
 		tabAtiva = e
-
 		for _, t in ipairs(todasTabs) do
 			local ok = (t == e)
 			t._ativo = ok
 			t.pagina.Visible = ok
-
 			if ok then
-				Tw(t.btn, 0.2, {BackgroundColor3=C.Destaque}, Enum.EasingStyle.Quart):Play()
-				Tw(t.lbl, 0.2, {TextColor3=Color3.new(1,1,1)}):Play()
-				if t.ico then Tw(t.ico, 0.2, {TextColor3=Color3.new(1,1,1)}):Play() end
-				t.lbl.Font = Enum.Font.GothamBold
-				if t.ind then
-					t.ind.BackgroundTransparency = 0
-					Tw(t.ind, 0.22, {Size=UDim2.new(0,3,0.7,0)},
-						Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
-				end
-				if t.glow then
-					t.glow.BackgroundTransparency = 0.82
-					Tw(t.glow, 0.35, {BackgroundTransparency=1}):Play()
-				end
+				Tw(t.btn,0.2,{BackgroundColor3=C.Destaque},Enum.EasingStyle.Quart):Play()
+				Tw(t.lbl,0.2,{TextColor3=Color3.new(1,1,1)}):Play()
+				if t.ico then Tw(t.ico,0.2,{TextColor3=Color3.new(1,1,1)}):Play() end
+				t.lbl.Font=Enum.Font.GothamBold
+				if t.ind then t.ind.BackgroundTransparency=0; Tw(t.ind,0.22,{Size=UDim2.new(0,3,0.7,0)},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play() end
+				if t.glow then t.glow.BackgroundTransparency=0.82; Tw(t.glow,0.35,{BackgroundTransparency=1}):Play() end
 			else
-				Tw(t.btn, 0.18, {BackgroundColor3=C.Item}):Play()
-				Tw(t.lbl, 0.18, {TextColor3=C.Sub}):Play()
-				if t.ico then Tw(t.ico, 0.18, {TextColor3=C.Fraco}):Play() end
-				t.lbl.Font = Enum.Font.Gotham
-				if t.ind then
-					Tw(t.ind, 0.15, {Size=UDim2.new(0,3,0,0)}):Play()
-					task.delay(0.15, function()
-						if not t._ativo then t.ind.BackgroundTransparency=1 end
-					end)
-				end
+				Tw(t.btn,0.18,{BackgroundColor3=C.Item}):Play()
+				Tw(t.lbl,0.18,{TextColor3=C.Sub}):Play()
+				if t.ico then Tw(t.ico,0.18,{TextColor3=C.Fraco}):Play() end
+				t.lbl.Font=Enum.Font.Gotham
+				if t.ind then Tw(t.ind,0.15,{Size=UDim2.new(0,3,0,0)}):Play(); task.delay(0.15,function() if not t._ativo then t.ind.BackgroundTransparency=1 end end) end
 			end
 		end
 	end
@@ -768,9 +1126,6 @@ function Hub.novo(nome, tema, velocidade)
 		local function PO() ord+=1; return ord end
 		local function RC(obj,prop,key) RegCor(obj,prop,key) end
 
-		-- ╔══════════════════════════════════════════════════════════╗
-		-- ║  CriarColorPicker v2.1 — CORRIGIDO                      ║
-		-- ╚══════════════════════════════════════════════════════════╝
 		function Aba:CriarColorPicker(texto, padraoColor3, callback)
 			local corAtual = padraoColor3 or Color3.fromRGB(255,255,255)
 			local h, s, v  = Color3.toHSV(corAtual)
@@ -787,16 +1142,6 @@ function Hub.novo(nome, tema, velocidade)
 			local PICKER_H = PAD + CVH + 8 + BAR_H + 8 + BAR_H + 8 + 18*2 + 4 + PAD
 			local AH     = FH + PICKER_H
 
-			-- ╔══════════════════════════════════════════════════════╗
-			-- ║  FIX #1: fr usa ClipsDescendants=true para que o    ║
-			-- ║  conteúdo interno não vaze visualmente, MAS o painel ║
-			-- ║  de opções (pickerCorpo) vive FORA do fr, no pagina  ║
-			-- ║  para não ser cortado quando o fr está menor.        ║
-			-- ║  Alternativamente: fr com ClipsDescendants=false e  ║
-			-- ║  o cab com ZIndex alto o suficiente.                 ║
-			-- ╚══════════════════════════════════════════════════════╝
-
-			-- card externo
 			local fr = F({
 				Size=UDim2.new(1,-6,0,FH),
 				BackgroundColor3=C.Cartao,
@@ -806,11 +1151,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
 
-			-- ╔══════════════════════════════════════════════════════╗
-			-- ║  FIX #2: usar TextButton como cabeçalho diretamente  ║
-			-- ║  sem Frame opaco na frente. Removemos o cabBg que    ║
-			-- ║  bloqueava os cliques.                               ║
-			-- ╚══════════════════════════════════════════════════════╝
 			local cab = Instance.new("TextButton")
 			cab.Size=UDim2.new(1,0,0,FH)
 			cab.BackgroundColor3=C.Cartao
@@ -819,7 +1159,6 @@ function Hub.novo(nome, tema, velocidade)
 			cab.ZIndex=2; cab.Parent=fr
 			Cantos(cab,10); RC(cab,"BackgroundColor3","Cartao")
 
-			-- label do título no cab (diretamente, sem Frame intermediário)
 			L({
 				Size=UDim2.new(0.5,0,1,0),
 				Position=UDim2.new(0,14,0,0),
@@ -850,7 +1189,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			RC(seta,"TextColor3","Fraco")
 
-			-- painel de opções (filho de fr, abaixo do cab)
 			local pickerCorpo = F({
 				Size=UDim2.new(1,0,0,PICKER_H),
 				Position=UDim2.new(0,0,0,FH),
@@ -861,14 +1199,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			RC(pickerCorpo,"BackgroundColor3","Cartao")
 
-			-- ── CANVAS SV ──────────────────────────────────────────
-			-- ╔══════════════════════════════════════════════════════╗
-			-- ║  FIX #5: cvFr.BackgroundColor3 DEVE ser branco.     ║
-			-- ║  UIGradient multiplica suas cores pelo BackgroundColor3. ║
-			-- ║  Se BG for laranja, esq do gradSat fica laranja×branco ║
-			-- ║  = laranja, nunca branco. Com BG=branco: branco×branco ║
-			-- ║  = branco ✓   branco×hue = hue ✓                   ║
-			-- ╚══════════════════════════════════════════════════════╝
 			local cvFr = F({
 				Size=UDim2.new(0,CVW,0,CVH),
 				Position=UDim2.new(0,PAD,0,PAD),
@@ -881,11 +1211,6 @@ function Hub.novo(nome, tema, velocidade)
 			gradSat.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h,1,1))
 			gradSat.Rotation = 0; gradSat.Parent = cvFr
 
-			-- ╔══════════════════════════════════════════════════════╗
-			-- ║  FIX #5: cvDark PRECISA ser preto puro.             ║
-			-- ║  Sem isso o UIGradient aplica sobre cinza (default) ║
-			-- ║  e as cores ficam lavadas/erradas.                  ║
-			-- ╚══════════════════════════════════════════════════════╝
 			local cvDark = F({Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.new(0,0,0), ZIndex=3, Parent=cvFr})
 			Cantos(cvDark,6)
 			local gradDark = Instance.new("UIGradient")
@@ -903,7 +1228,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			Cantos(cvCursor,99); Stroke(cvCursor,Color3.new(0,0,0),2,0.2)
 
-			-- ── HUE BAR ────────────────────────────────────────────
 			local hueY = PAD + CVH + 8
 			local hueFr = F({
 				Size=UDim2.new(0,CVW,0,BAR_H),
@@ -923,7 +1247,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			Cantos(hueCur,99); Stroke(hueCur,Color3.new(0,0,0),2,0.2)
 
-			-- ── VALUE BAR ──────────────────────────────────────────
 			local valY = hueY + BAR_H + 8
 			local valFr = F({
 				Size=UDim2.new(0,CVW,0,BAR_H),
@@ -941,7 +1264,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			Cantos(valCur,99); Stroke(valCur,Color3.new(0,0,0),2,0.2)
 
-			-- ── PRESETS ─────────────────────────────────────────────
 			local presetY = valY + BAR_H + 8
 			local presets = {
 				Color3.fromRGB(255,59,59), Color3.fromRGB(255,140,0), Color3.fromRGB(255,210,0),
@@ -951,7 +1273,6 @@ function Hub.novo(nome, tema, velocidade)
 			}
 			local PCOLS = 6; local PCELL = IS_MOBILE and 20 or 22; local PGAP = 4
 
-			-- ── PAINEL DIREITO ──────────────────────────────────────
 			local bigPrev = F({
 				Size=UDim2.new(0,RW,0,44),
 				Position=UDim2.new(0,RX,0,PAD),
@@ -985,7 +1306,6 @@ function Hub.novo(nome, tema, velocidade)
 			hexBox.ClearTextOnFocus=false; hexBox.ZIndex=3; hexBox.Parent=hexFr
 			RC(hexBox,"TextColor3","Texto")
 
-			-- sliders R G B
 			local rgbData = {
 				{label="R",cor=Color3.fromRGB(220,55,55), prop="r"},
 				{label="G",cor=Color3.fromRGB(48,200,100),prop="g"},
@@ -994,8 +1314,8 @@ function Hub.novo(nome, tema, velocidade)
 			local rgbRefs = {}
 			local function GetRGB()
 				return math.floor(corAtual.R*255+0.5),
-					   math.floor(corAtual.G*255+0.5),
-					   math.floor(corAtual.B*255+0.5)
+				math.floor(corAtual.G*255+0.5),
+				math.floor(corAtual.B*255+0.5)
 			end
 			for i,rd in ipairs(rgbData) do
 				local ry = PAD+78+(i-1)*26
@@ -1016,26 +1336,22 @@ function Hub.novo(nome, tema, velocidade)
 				rgbRefs[rd.prop]={trilha=rt,fill=rf,bola=rb}
 			end
 
-			-- ╔══════════════════════════════════════════════════════╗
-			-- ║  FIX #3: AtualizarTudo definida ANTES dos presets   ║
-			-- ║  e de qualquer código que a chame.                  ║
-			-- ╚══════════════════════════════════════════════════════╝
 			local function AtualizarTudo()
 				h=math.clamp(h,0,1); s=math.clamp(s,0,1); v=math.clamp(v,0,1)
 				corAtual=Color3.fromHSV(h,s,v)
 				preview.BackgroundColor3=corAtual
 				bigPrev.BackgroundColor3=corAtual
 				if not hexBox:IsFocused() then hexBox.Text=CorParaHex(corAtual) end
-				-- canvas — cvFr fica sempre branco, só o gradSat muda
+
 				gradSat.Color=ColorSequence.new(Color3.new(1,1,1),Color3.fromHSV(h,1,1))
 				cvCursor.Position=UDim2.new(s,0,1-v,0)
 				cvCursor.BackgroundColor3=corAtual
-				-- hue
+
 				hueCur.Position=UDim2.new(h,0,0.5,0)
-				-- val
+
 				valGrad.Color=ColorSequence.new(Color3.new(0,0,0),Color3.fromHSV(h,s,1))
 				valCur.Position=UDim2.new(v,0,0.5,0)
-				-- rgb sliders
+
 				local r2,g2,b2=GetRGB()
 				local rv={r=r2/255,g=g2/255,b=b2/255}
 				for prop,ref in pairs(rgbRefs) do
@@ -1045,7 +1361,6 @@ function Hub.novo(nome, tema, velocidade)
 				if callback then callback(corAtual) end
 			end
 
-			-- agora sim: criar os presets (chamam AtualizarTudo que já existe)
 			for i,pc in ipairs(presets) do
 				local col=(i-1)%PCOLS; local row=math.floor((i-1)/PCOLS)
 				local pb=Instance.new("TextButton")
@@ -1069,14 +1384,12 @@ function Hub.novo(nome, tema, velocidade)
 				end)
 			end
 
-			-- conectar hexBox agora que AtualizarTudo existe
 			hexBox.FocusLost:Connect(function()
 				local nc=HexParaCor(hexBox.Text)
 				if nc then h,s,v=Color3.toHSV(nc); AtualizarTudo()
 				else hexBox.Text=CorParaHex(corAtual) end
 			end)
 
-			-- ── DRAG UNIFICADO ──────────────────────────────────────
 			local dragTipo = nil
 
 			local function Arrastar(px, py)
@@ -1116,7 +1429,6 @@ function Hub.novo(nome, tema, velocidade)
 					or i.UserInputType==Enum.UserInputType.Touch
 			end
 
-			-- hit areas para drag
 			local cvHit = Instance.new("TextButton")
 			cvHit.Size=UDim2.new(1,0,1,0); cvHit.BackgroundTransparency=1
 			cvHit.Text=""; cvHit.AutoButtonColor=false; cvHit.ZIndex=8; cvHit.Parent=cvFr
@@ -1157,11 +1469,6 @@ function Hub.novo(nome, tema, velocidade)
 				end)
 			end
 
-			-- ╔══════════════════════════════════════════════════════╗
-			-- ║  FIX #4: listeners globais registrados em _conexoes  ║
-			-- ║  para serem desconectados quando o hub fechar.       ║
-			-- ║  Usamos variável local dragTipo deste picker.        ║
-			-- ╚══════════════════════════════════════════════════════╝
 			table.insert(hubSelf._conexoes, EntradaUsuario.InputChanged:Connect(function(i)
 				if dragTipo==nil then return end
 				if IsMoved(i) then Arrastar(i.Position.X,i.Position.Y) end
@@ -1174,16 +1481,15 @@ function Hub.novo(nome, tema, velocidade)
 				dragTipo=nil
 			end))
 
-			-- ── ABRIR / FECHAR ──────────────────────────────────────
 			cab.MouseButton1Click:Connect(function()
 				aberto=not aberto
 				if aberto then
 					pickerCorpo.Visible=true
 					Tw(fr,0.28,{Size=UDim2.new(1,-6,0,AH)},
-						Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
+					Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
 				else
 					Tw(fr,0.2,{Size=UDim2.new(1,-6,0,FH)},
-						Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
+					Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
 					task.delay(0.2,function()
 						if not aberto then pickerCorpo.Visible=false end
 					end)
@@ -1220,20 +1526,231 @@ function Hub.novo(nome, tema, velocidade)
 			RC(sep,"BackgroundColor3","Borda"); return sep
 		end
 
-		function Aba:CriarBotao(texto, callback)
-			local b=Instance.new("TextButton")
-			b.Size=UDim2.new(1,-6,0,BTN_H); b.BackgroundColor3=C.BotaoFundo; b.TextColor3=C.BotaoTexto
-			b.Text=texto; b.Font=Enum.Font.GothamBold; b.TextSize=13
-			b.AutoButtonColor=false; b.LayoutOrder=PO(); b.Parent=pagina
-			Cantos(b,10); RC(b,"BackgroundColor3","BotaoFundo"); RC(b,"TextColor3","BotaoTexto")
-			local brdB=Stroke(b,C.Destaque,1,0.55); RC(brdB,"Color","Destaque")
-			if isRainbow then AddRainbow(brdB,"Color",0.15) end
-			b.MouseEnter:Connect(function() Tw(b,0.15,{BackgroundColor3=C.BotaoHover}):Play(); Tw(brdB,0.15,{Transparency=0.1}):Play() end)
-			b.MouseLeave:Connect(function() Tw(b,0.15,{BackgroundColor3=C.BotaoFundo}):Play(); Tw(brdB,0.15,{Transparency=0.55}):Play() end)
-			b.MouseButton1Down:Connect(function() Tw(b,0.07,{Size=UDim2.new(1,-10,0,BTN_H-2)}):Play() end)
-			b.MouseButton1Up:Connect(function() Tw(b,0.12,{Size=UDim2.new(1,-6,0,BTN_H)}):Play() end)
-			b.MouseButton1Click:Connect(function() if callback then callback() end end)
-			return b
+		function Aba:CriarBotao(texto, callback, config)
+			config = config or {}
+			local icone  = config.icone
+			local perigo = config.perigo
+			local BH     = BTN_H
+
+			local function CorFundo()  return perigo and C.Perigo    or C.BotaoFundo  end
+			local function CorHover()  return perigo and Color3.fromRGB(
+				math.min(C.Perigo.R*255+30,255),
+				math.min(C.Perigo.G*255+18,255),
+				math.min(C.Perigo.B*255+18,255)
+				) or C.BotaoHover end
+			local function CorTexto()  return perigo and Color3.new(1,1,1) or C.BotaoTexto end
+			local function CorBorda()  return perigo and C.Perigo    or C.Destaque   end
+			local function CorGradTop()
+				local f = CorFundo()
+				return Color3.new(math.min(f.R+0.06,1), math.min(f.G+0.06,1), math.min(f.B+0.06,1))
+			end
+
+			local wrap = F({
+				Size                   = UDim2.new(1,-6,0,BH),
+				BackgroundTransparency = 1,
+				LayoutOrder            = PO(),
+				ClipsDescendants       = false,
+				Parent                 = pagina,
+			})
+
+			local glow = F({
+				Size                   = UDim2.new(1,14,1,14),
+				Position               = UDim2.new(0,-7,0,-7),
+				BackgroundColor3       = CorBorda(),
+				BackgroundTransparency = 1,
+				ZIndex                 = 1,
+				Parent                 = wrap,
+			})
+			Cantos(glow, 16)
+			RC(glow, "BackgroundColor3", perigo and "Perigo" or "Destaque")
+
+			local b = Instance.new("TextButton")
+			b.Size             = UDim2.new(1,0,1,0)
+			b.BackgroundColor3 = CorFundo()
+			b.Text             = ""
+			b.Font             = Enum.Font.GothamBold
+			b.TextSize         = 13
+			b.AutoButtonColor  = false
+			b.ClipsDescendants = true
+			b.ZIndex           = 2
+			b.Parent           = wrap
+			Cantos(b, 10)
+			RC(b, "BackgroundColor3", perigo and "Perigo" or "BotaoFundo")
+
+			local gradFundo = Instance.new("UIGradient")
+			gradFundo.Color    = ColorSequence.new(CorGradTop(), CorFundo())
+			gradFundo.Rotation = 90
+			gradFundo.Parent   = b
+
+			table.insert(_gradRefs, {
+				grad = gradFundo,
+				k1 = perigo and "Perigo" or "BotaoHover",
+				k2 = perigo and "Perigo" or "BotaoFundo",
+				rot = 90,
+			})
+
+			local brdB = Stroke(b, CorBorda(), 1, 0.45)
+			RC(brdB, "Color", perigo and "Perigo" or "Destaque")
+			if isRainbow and not perigo then AddRainbow(brdB, "Color", 0.15) end
+
+			local shine = F({
+				Size                   = UDim2.new(1,0,0,BH*0.48),
+				Position               = UDim2.new(0,0,0,0),
+				BackgroundColor3       = Color3.new(1,1,1),
+				BackgroundTransparency = 0.88,
+				ZIndex                 = 4,
+				Parent                 = b,
+			})
+			Cantos(shine, 10)
+			do
+				local g = Instance.new("UIGradient")
+				g.Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0,   0.00),
+					NumberSequenceKeypoint.new(0.5, 0.04),
+					NumberSequenceKeypoint.new(1,   1.00),
+				})
+				g.Rotation = 90; g.Parent = shine
+			end
+
+			local shimmer = F({
+				Size                   = UDim2.new(0,40,1,8),
+				Position               = UDim2.new(0,-60,0,-4),
+				BackgroundColor3       = Color3.new(1,1,1),
+				BackgroundTransparency = 0.78,
+				Rotation               = 20,
+				ZIndex                 = 5,
+				Parent                 = b,
+			})
+			do
+				local g = Instance.new("UIGradient")
+				g.Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0,    1  ),
+					NumberSequenceKeypoint.new(0.45, 0.5),
+					NumberSequenceKeypoint.new(0.55, 0.5),
+					NumberSequenceKeypoint.new(1,    1  ),
+				})
+				g.Rotation = 0; g.Parent = shimmer
+			end
+
+			local function SpawnRipple(mx, my)
+				local rp = F({
+					Size                   = UDim2.new(0,0,0,0),
+					Position               = UDim2.new(0, mx - b.AbsolutePosition.X,
+						0, my - b.AbsolutePosition.Y),
+					AnchorPoint            = Vector2.new(0.5,0.5),
+					BackgroundColor3       = Color3.new(1,1,1),
+					BackgroundTransparency = 0.72,
+					ZIndex                 = 6,
+					Parent                 = b,
+				})
+				Cantos(rp, 99)
+				local sz = b.AbsoluteSize.X * 2.2
+				Tw(rp, 0.50, {
+					Size                   = UDim2.new(0,sz,0,sz),
+					BackgroundTransparency = 1,
+				}, Enum.EasingStyle.Quart, Enum.EasingDirection.Out):Play()
+				task.delay(0.52, function() if rp.Parent then rp:Destroy() end end)
+			end
+
+			local lblHolder = F({
+				Size                   = UDim2.new(1,-16,1,0),
+				Position               = UDim2.new(0,8,0,0),
+				BackgroundTransparency = 1,
+				ZIndex                 = 7,
+				Parent                 = b,
+			})
+
+			local lblTexto
+			if icone then
+				local icoLbl = L({
+					Size           = UDim2.new(0,22,1,0),
+					Position       = UDim2.new(0,0,0,0),
+					Text           = icone,
+					TextColor3     = CorTexto(),
+					Font           = Enum.Font.GothamBold,
+					TextSize       = 14,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					ZIndex         = 7,
+					Parent         = lblHolder,
+				})
+				RC(icoLbl, "TextColor3", perigo and "Texto" or "BotaoTexto")
+				lblTexto = L({
+					Size           = UDim2.new(1,-26,1,0),
+					Position       = UDim2.new(0,26,0,0),
+					Text           = texto,
+					TextColor3     = CorTexto(),
+					Font           = Enum.Font.GothamBold,
+					TextSize       = 13,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					ZIndex         = 7,
+					Parent         = lblHolder,
+				})
+			else
+				lblTexto = L({
+					Size       = UDim2.new(1,0,1,0),
+					Text       = texto,
+					TextColor3 = CorTexto(),
+					Font       = Enum.Font.GothamBold,
+					TextSize   = 13,
+					ZIndex     = 7,
+					Parent     = lblHolder,
+				})
+			end
+			RC(lblTexto, "TextColor3", perigo and "Texto" or "BotaoTexto")
+
+			local shimmerTw = nil
+			local hovering  = false
+
+			b.MouseEnter:Connect(function()
+				hovering = true
+				Tw(b,     0.18, { BackgroundColor3 = CorHover()  }):Play()
+				Tw(brdB,  0.18, { Transparency = 0.05 }):Play()
+				Tw(glow,  0.22, { BackgroundColor3 = CorBorda(), BackgroundTransparency = 0.76 }):Play()
+				Tw(shine, 0.18, { BackgroundTransparency = 0.78 }):Play()
+				shimmer.Position = UDim2.new(0,-60,0,-4)
+				if shimmerTw then shimmerTw:Cancel() end
+				shimmerTw = Tw(shimmer, 0.48, {
+					Position = UDim2.new(0, b.AbsoluteSize.X + 20, 0, -4),
+				}, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+				shimmerTw:Play()
+			end)
+
+			b.MouseLeave:Connect(function()
+				hovering = false
+				Tw(b,     0.18, { BackgroundColor3 = CorFundo() }):Play()
+				Tw(brdB,  0.18, { Transparency = 0.45 }):Play()
+				Tw(glow,  0.22, { BackgroundTransparency = 1 }):Play()
+				Tw(shine, 0.18, { BackgroundTransparency = 0.88 }):Play()
+			end)
+
+			b.MouseButton1Down:Connect(function(x, y)
+				SpawnRipple(x, y)
+				Tw(b,    0.08, { Size = UDim2.new(1,-8, 0,BH-3) }):Play()
+				Tw(wrap, 0.08, { Size = UDim2.new(1,-10,0,BH-3) }):Play()
+				Tw(brdB, 0.08, { Transparency = 0 }):Play()
+				Tw(glow, 0.08, { BackgroundTransparency = 0.62 }):Play()
+			end)
+
+			b.MouseButton1Up:Connect(function()
+				Tw(b,    0.18, { Size = UDim2.new(1,0, 0,BH) },
+				Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+				Tw(wrap, 0.18, { Size = UDim2.new(1,-6,0,BH) },
+				Enum.EasingStyle.Back, Enum.EasingDirection.Out):Play()
+				Tw(glow, 0.22, { BackgroundTransparency = hovering and 0.76 or 1 }):Play()
+			end)
+
+			b.MouseButton1Click:Connect(function()
+				if callback then callback() end
+			end)
+			
+			local obj = {}
+			function obj:SetTexto(t) if lblTexto then lblTexto.Text = t end end
+			function obj:SetAtivo(ativo)
+				b.Active = ativo
+				Tw(b,    0.15, { BackgroundTransparency = ativo and 0 or 0.50 }):Play()
+				Tw(brdB, 0.15, { Transparency           = ativo and 0.45 or 0.80 }):Play()
+			end
+			return obj
 		end
 
 		function Aba:CriarToggle(texto, padrao, callback)
@@ -1335,7 +1852,7 @@ function Hub.novo(nome, tema, velocidade)
 			fr.InputChanged:Connect(function(i)
 				if i.UserInputType == Enum.UserInputType.Touch and touchStart then
 					if math.abs(i.Position.X-touchStart.X)>THRESH
-					or math.abs(i.Position.Y-touchStart.Y)>THRESH then
+						or math.abs(i.Position.Y-touchStart.Y)>THRESH then
 						touchDrag = true
 					end
 				end
@@ -1520,11 +2037,6 @@ function Hub.novo(nome, tema, velocidade)
 				end
 			end
 
-			-- ╔══════════════════════════════════════════════════════╗
-			-- ║  ClipsDescendants=TRUE — o fr cresce de verdade no  ║
-			-- ║  UIListLayout, empurrando elementos abaixo dele.    ║
-			-- ║  Sem sobreposição sobre toggles/textos/etc.         ║
-			-- ╚══════════════════════════════════════════════════════╝
 			local fr = F({
 				Size=UDim2.new(1,-6,0,FH),
 				BackgroundColor3=C.Cartao,
@@ -1534,7 +2046,6 @@ function Hub.novo(nome, tema, velocidade)
 			})
 			Cantos(fr,10); Stroke(fr,C.Borda,1,0.35); RC(fr,"BackgroundColor3","Cartao")
 
-			-- cabeçalho (botão clicável)
 			local cab = Instance.new("TextButton")
 			cab.Size=UDim2.new(1,0,0,FH)
 			cab.BackgroundTransparency=1
@@ -1563,12 +2074,10 @@ function Hub.novo(nome, tema, velocidade)
 				TextSize=16, Rotation=90, ZIndex=3, Parent=cab})
 			RC(seta,"TextColor3","Fraco")
 
-			-- separador entre cabeçalho e conteúdo
 			local sep = F({Size=UDim2.new(1,0,0,1), Position=UDim2.new(0,0,0,FH),
 				BackgroundColor3=C.Borda, ZIndex=2, Parent=fr})
 			RC(sep,"BackgroundColor3","Borda")
 
-			-- campo de busca
 			local searchBox = nil
 			local sfrRef    = nil
 			if useSearch then
@@ -1595,7 +2104,6 @@ function Hub.novo(nome, tema, velocidade)
 				searchBox.FocusLost:Connect(function() Tw(sbrd,0.15,{Color=C.Borda,Transparency=0.4}):Play() end)
 			end
 
-			-- lista de itens (ScrollingFrame dentro do fr)
 			local listaHolder = Instance.new("ScrollingFrame")
 			listaHolder.BackgroundTransparency=1; listaHolder.BorderSizePixel=0
 			listaHolder.ScrollBarThickness=IS_MOBILE and 0 or 3
@@ -1616,7 +2124,6 @@ function Hub.novo(nome, tema, velocidade)
 				if badgeLbl then badgeLbl.Text=tostring(cnt) end
 			end
 
-			-- altura total do fr quando aberto
 			local function CalcAlturaTotal(visCount)
 				local linhas = math.min(visCount, maxVis)
 				local altLista = linhas*(IHd+GAP) + PAD*2
@@ -1625,8 +2132,6 @@ function Hub.novo(nome, tema, velocidade)
 
 			local _syncValorRef = {fn = function() end}
 
-			-- forward declaration: ConstruirItens chama FecharDropdown no click,
-			-- então precisa existir antes mesmo que o corpo seja definido abaixo
 			local FecharDropdown
 
 			local function ConstruirItens(filtro)
@@ -1695,7 +2200,6 @@ function Hub.novo(nome, tema, velocidade)
 							_syncValorRef.fn()
 							if callback then callback(GetLabel(), selMulti) end
 						else
-							-- atualizar seleção visual
 							selSimples=op; lblS.Text=op
 							for _,entry in ipairs(todosItens) do
 								local sel2=entry.op==op
@@ -1717,7 +2221,6 @@ function Hub.novo(nome, tema, velocidade)
 					L({Size=UDim2.new(1,0,1,0),Text="Nenhum resultado",TextColor3=C.Fraco,Font=Enum.Font.Gotham,TextSize=12,ZIndex=3,Parent=empty})
 				end
 
-				-- posicionar e dimensionar a lista dentro do fr
 				local linhas = math.min(visiveis>0 and visiveis or 1, maxVis)
 				local altLista = linhas*(IHd+GAP) + PAD*2
 				listaHolder.Size=UDim2.new(1,0,0,altLista)
@@ -1919,458 +2422,5 @@ function Hub.novo(nome, tema, velocidade)
 	return self
 end
 Hub.new = Hub.novo
-
--- ╔══════════════════════════════════════════════════════════════════════╗
--- ║  Hub.CriarSenha(config) — tela de autenticação por PIN              ║
--- ║                                                                      ║
--- ║  config = {                                                          ║
--- ║    senha      = "1234",      -- PIN correto (string)                 ║
--- ║    titulo     = "HubUI",     -- nome exibido                         ║
--- ║    subtitulo  = "...",       -- texto abaixo do título               ║
--- ║    tentativas = 3,           -- máx tentativas (0 = ilimitado)       ║
--- ║    tema       = "Escuro",    -- paleta de cores                      ║
--- ║    aoAcertar  = function()   -- callback quando PIN correto          ║
--- ║    aoErrar    = function(t)  -- callback a cada erro (t=tentativas)  ║
--- ║    aoBloq     = function()   -- callback quando bloqueia             ║
--- ║  }                                                                   ║
--- ╚══════════════════════════════════════════════════════════════════════╝
-function Hub.CriarSenha(config)
-	config = config or {}
-	local senha      = tostring(config.senha      or "1234")
-	local titulo     = config.titulo     or "HubUI"
-	local subtitulo  = config.subtitulo  or "Digite o PIN para continuar"
-	local maxTent    = config.tentativas or 3
-	local nomeTema   = config.tema       or "Escuro"
-	local cbAcertar  = config.aoAcertar
-	local cbErrar    = config.aoErrar
-	local cbBloq     = config.aoBloq
-
-	local C = paletas[nomeTema] or paletas.Escuro
-	local isRainbow = C.Rainbow == true
-
-	local PIN_LEN   = #senha
-	local digitado  = ""
-	local tentativas = 0
-	local bloqueado  = false
-	local destruido  = false
-
-	local EntradaUsuario = game:GetService("UserInputService")
-	local TweenService   = game:GetService("TweenService")
-	local RunService     = game:GetService("RunService")
-
-	local function Tw2(obj,t,props,es,ed)
-		return TweenService:Create(obj,TweenInfo.new(t,es or Enum.EasingStyle.Quart,ed or Enum.EasingDirection.Out),props)
-	end
-
-	-- ── GUI ROOT ────────────────────────────────────────────────────────
-	local gui = Instance.new("ScreenGui")
-	gui.Name="HubSenha"; gui.ResetOnSpawn=false
-	gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-	gui.IgnoreGuiInset=true
-	gui.Parent=game.Players.LocalPlayer:WaitForChild("PlayerGui")
-
-	-- overlay escuro cobrindo tudo
-	local overlay = Instance.new("Frame")
-	overlay.Size=UDim2.new(1,0,1,0); overlay.BackgroundColor3=Color3.new(0,0,0)
-	overlay.BackgroundTransparency=0; overlay.BorderSizePixel=0; overlay.ZIndex=1; overlay.Parent=gui
-
-	-- partículas de fundo (pontos animados)
-	local NUM_PARTS = IS_MOBILE and 18 or 32
-	local partes = {}
-	for i=1,NUM_PARTS do
-		local p = Instance.new("Frame")
-		p.Size=UDim2.new(0,math.random(2,5),0,math.random(2,5))
-		p.Position=UDim2.new(math.random()/1,0,math.random()/1,0)
-		p.BackgroundColor3=C.Destaque
-		p.BackgroundTransparency=math.random(55,85)/100
-		p.BorderSizePixel=0; p.ZIndex=2; p.Parent=overlay
-		local corner=Instance.new("UICorner"); corner.CornerRadius=UDim.new(1,0); corner.Parent=p
-		partes[i]={fr=p, vx=(math.random()-0.5)*0.00018, vy=(math.random()-0.5)*0.00018}
-	end
-
-	-- linhas de grade decorativas no fundo
-	for i=1,6 do
-		local ln=Instance.new("Frame")
-		ln.Size=UDim2.new(1,0,0,1); ln.Position=UDim2.new(0,0,(i-1)/6,0)
-		ln.BackgroundColor3=C.Destaque; ln.BackgroundTransparency=0.92
-		ln.BorderSizePixel=0; ln.ZIndex=2; ln.Parent=overlay
-	end
-	for i=1,8 do
-		local ln=Instance.new("Frame")
-		ln.Size=UDim2.new(0,1,1,0); ln.Position=UDim2.new((i-1)/8,0,0,0)
-		ln.BackgroundColor3=C.Destaque; ln.BackgroundTransparency=0.92
-		ln.BorderSizePixel=0; ln.ZIndex=2; ln.Parent=overlay
-	end
-
-	-- ── CARD CENTRAL ───────────────────────────────────────────────────
-	local vp = workspace.CurrentCamera.ViewportSize
-	local CW = IS_MOBILE and math.min(vp.X-32,340) or 360
-	local CH = IS_MOBILE and 520 or 540
-
-	local card = Instance.new("Frame")
-	card.Size=UDim2.new(0,CW,0,CH)
-	card.Position=UDim2.new(0.5,-CW/2,0.5,-CH/2+30)
-	card.BackgroundColor3=C.Janela
-	card.BackgroundTransparency=0
-	card.BorderSizePixel=0; card.ZIndex=3; card.Parent=gui
-	local cardCorner=Instance.new("UICorner"); cardCorner.CornerRadius=UDim.new(0,20); cardCorner.Parent=card
-	local cardBrd=Instance.new("UIStroke"); cardBrd.Color=C.Borda; cardBrd.Thickness=1
-	cardBrd.Transparency=0.25; cardBrd.Parent=card
-
-	-- brilho no topo do card
-	local topGlow=Instance.new("Frame")
-	topGlow.Size=UDim2.new(0.7,0,0,2); topGlow.Position=UDim2.new(0.15,0,0,0)
-	topGlow.BackgroundColor3=C.Destaque; topGlow.BorderSizePixel=0; topGlow.ZIndex=4; topGlow.Parent=card
-	local tgCorner=Instance.new("UICorner"); tgCorner.CornerRadius=UDim.new(1,0); tgCorner.Parent=topGlow
-	local tgGrad=Instance.new("UIGradient")
-	tgGrad.Color=ColorSequence.new(C.DestaqueV,C.Destaque); tgGrad.Rotation=0; tgGrad.Parent=topGlow
-
-	-- gradiente sutil no fundo do card
-	local cardGrad=Instance.new("UIGradient")
-	cardGrad.Color=ColorSequence.new(
-		ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),
-		ColorSequenceKeypoint.new(1,Color3.new(0,0,0))
-	)
-	cardGrad.Transparency=NumberSequence.new({
-		NumberSequenceKeypoint.new(0,0.97),
-		NumberSequenceKeypoint.new(1,0.94),
-	})
-	cardGrad.Rotation=135; cardGrad.Parent=card
-
-	-- entrada animada do card
-	Tw2(card,0.55,{Position=UDim2.new(0.5,-CW/2,0.5,-CH/2)},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
-	Tw2(overlay,0.4,{BackgroundTransparency=0.35}):Play()
-
-	-- ── ÍCONE DE CADEADO ───────────────────────────────────────────────
-	local iconY = IS_MOBILE and 28 or 32
-	local iconSize = IS_MOBILE and 52 or 58
-	local iconFr=Instance.new("Frame")
-	iconFr.Size=UDim2.new(0,iconSize,0,iconSize)
-	iconFr.Position=UDim2.new(0.5,-iconSize/2,0,iconY)
-	iconFr.BackgroundColor3=C.BotaoFundo; iconFr.BorderSizePixel=0; iconFr.ZIndex=4; iconFr.Parent=card
-	local iconCorner=Instance.new("UICorner"); iconCorner.CornerRadius=UDim.new(0,16); iconCorner.Parent=iconFr
-	local iconBrd=Instance.new("UIStroke"); iconBrd.Color=C.Destaque; iconBrd.Thickness=1.5
-	iconBrd.Transparency=0.4; iconBrd.Parent=iconFr
-
-	-- brilho de fundo do ícone
-	local iconGlow=Instance.new("Frame")
-	iconGlow.Size=UDim2.new(1.8,0,1.8,0); iconGlow.AnchorPoint=Vector2.new(0.5,0.5)
-	iconGlow.Position=UDim2.new(0.5,0,0.5,0); iconGlow.BackgroundColor3=C.Destaque
-	iconGlow.BackgroundTransparency=0.88; iconGlow.BorderSizePixel=0; iconGlow.ZIndex=3; iconGlow.Parent=iconFr
-	local igCorner=Instance.new("UICorner"); igCorner.CornerRadius=UDim.new(1,0); igCorner.Parent=iconGlow
-
-	local iconLbl=Instance.new("TextLabel")
-	iconLbl.Size=UDim2.new(1,0,1,0); iconLbl.BackgroundTransparency=1
-	iconLbl.Text="🔒"; iconLbl.TextSize=IS_MOBILE and 24 or 26
-	iconLbl.Font=Enum.Font.GothamBold; iconLbl.ZIndex=5; iconLbl.Parent=iconFr
-
-	-- pulso do ícone
-	task.spawn(function()
-		while not destruido do
-			Tw2(iconGlow,1.2,{BackgroundTransparency=0.82}):Play(); task.wait(1.2)
-			Tw2(iconGlow,1.2,{BackgroundTransparency=0.92}):Play(); task.wait(1.2)
-		end
-	end)
-
-	-- ── TÍTULO E SUBTÍTULO ─────────────────────────────────────────────
-	local titleY = iconY + iconSize + 14
-	local lblTitulo=Instance.new("TextLabel")
-	lblTitulo.Size=UDim2.new(1,-32,0,28); lblTitulo.Position=UDim2.new(0,16,0,titleY)
-	lblTitulo.BackgroundTransparency=1; lblTitulo.Text=titulo
-	lblTitulo.TextColor3=C.Texto; lblTitulo.Font=Enum.Font.GothamBold
-	lblTitulo.TextSize=IS_MOBILE and 20 or 22; lblTitulo.ZIndex=4; lblTitulo.Parent=card
-
-	local lblSub=Instance.new("TextLabel")
-	lblSub.Size=UDim2.new(1,-32,0,18); lblSub.Position=UDim2.new(0,16,0,titleY+30)
-	lblSub.BackgroundTransparency=1; lblSub.Text=subtitulo
-	lblSub.TextColor3=C.Sub; lblSub.Font=Enum.Font.Gotham
-	lblSub.TextSize=IS_MOBILE and 11 or 12; lblSub.ZIndex=4; lblSub.Parent=card
-
-	-- ── INDICADORES DE PIN (bolinhas) ──────────────────────────────────
-	local dotsY = titleY + 62
-	local DOT_S  = IS_MOBILE and 13 or 14
-	local DOT_G  = IS_MOBILE and 12 or 14
-	local totalW = PIN_LEN*DOT_S + (PIN_LEN-1)*DOT_G
-	local dotsX  = (CW - totalW) / 2
-	local dots   = {}
-
-	for i=1,PIN_LEN do
-		local dot=Instance.new("Frame")
-		dot.Size=UDim2.new(0,DOT_S,0,DOT_S)
-		dot.Position=UDim2.new(0, dotsX+(i-1)*(DOT_S+DOT_G), 0, dotsY)
-		dot.BackgroundColor3=C.Fraco; dot.BorderSizePixel=0; dot.ZIndex=4; dot.Parent=card
-		local dc=Instance.new("UICorner"); dc.CornerRadius=UDim.new(1,0); dc.Parent=dot
-		local ds=Instance.new("UIStroke"); ds.Color=C.Borda; ds.Thickness=1; ds.Transparency=0.3; ds.Parent=dot
-		dots[i]={fr=dot, brd=ds}
-	end
-
-	-- ── LABEL DE STATUS ────────────────────────────────────────────────
-	local statusY = dotsY + DOT_S + 10
-	local lblStatus=Instance.new("TextLabel")
-	lblStatus.Size=UDim2.new(1,-32,0,16); lblStatus.Position=UDim2.new(0,16,0,statusY)
-	lblStatus.BackgroundTransparency=1; lblStatus.Text=""
-	lblStatus.TextColor3=C.Perigo; lblStatus.Font=Enum.Font.GothamBold
-	lblStatus.TextSize=11; lblStatus.ZIndex=4; lblStatus.Parent=card
-
-	-- ── TECLADO NUMÉRICO ───────────────────────────────────────────────
-	local padY    = statusY + 22
-	local BTN_S   = IS_MOBILE and 68 or 72
-	local BTN_G   = IS_MOBILE and 10 or 12
-	local PAD_OFF = (CW - (3*BTN_S + 2*BTN_G)) / 2
-
-	local layout = {
-		{"7","8","9"},
-		{"4","5","6"},
-		{"1","2","3"},
-		{"←","0","✓"},
-	}
-
-	local btnRefs = {}
-
-	local function AtualizarDots()
-		for i=1,PIN_LEN do
-			local preenchido = i <= #digitado
-			local dot=dots[i]
-			Tw2(dot.fr,0.12,{
-				BackgroundColor3 = preenchido and C.Destaque or C.Fraco,
-				Size = preenchido and UDim2.new(0,DOT_S+2,0,DOT_S+2) or UDim2.new(0,DOT_S,0,DOT_S),
-			},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
-			Tw2(dot.brd,0.12,{Transparency = preenchido and 0.6 or 0.3}):Play()
-		end
-	end
-
-	local function ShakeCard()
-		local ox = card.Position.X.Offset
-		local oy = card.Position.Y.Offset
-		local sx = card.Position.X.Scale
-		local sy = card.Position.Y.Scale
-		local shakes = {8,-8,6,-6,4,-4,2,0}
-		local function doShake(i)
-			if i>#shakes then
-				card.Position=UDim2.new(sx,ox,sy,oy)
-				return
-			end
-			Tw2(card,0.04,{Position=UDim2.new(sx,ox+shakes[i],sy,oy)},Enum.EasingStyle.Linear):Play()
-			task.delay(0.04,function() doShake(i+1) end)
-		end
-		doShake(1)
-	end
-
-	local function FlashDots(cor)
-		for i=1,PIN_LEN do
-			Tw2(dots[i].fr,0.08,{BackgroundColor3=cor}):Play()
-		end
-		task.delay(0.25,function()
-			for i=1,PIN_LEN do
-				Tw2(dots[i].fr,0.18,{BackgroundColor3=C.Fraco,Size=UDim2.new(0,DOT_S,0,DOT_S)}):Play()
-			end
-		end)
-	end
-
-	local function Destruir(delay_)
-		task.delay(delay_ or 0, function()
-			destruido=true
-			Tw2(card,0.3,{Position=UDim2.new(0.5,-CW/2,0.5,-CH/2-18),BackgroundTransparency=1},
-				Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
-			Tw2(overlay,0.3,{BackgroundTransparency=1},Enum.EasingStyle.Quart,Enum.EasingDirection.In):Play()
-			task.delay(0.32,function() if gui and gui.Parent then gui:Destroy() end end)
-		end)
-	end
-
-	local function Verificar()
-		if bloqueado then return end
-		if digitado == senha then
-			-- ACERTO
-			FlashDots(C.Sucesso)
-			lblStatus.TextColor3=C.Sucesso; lblStatus.Text="✓  Acesso liberado"
-			iconLbl.Text="🔓"
-			Tw2(cardBrd,0.3,{Color=C.Sucesso,Transparency=0.1}):Play()
-			Tw2(topGlow,0.3,{BackgroundColor3=C.Sucesso}):Play()
-			-- sumir botões
-			for _,b in pairs(btnRefs) do
-				Tw2(b,0.2,{BackgroundTransparency=1,TextTransparency=1}):Play()
-			end
-			if cbAcertar then task.delay(0.55,function() pcall(cbAcertar) end) end
-			Destruir(0.55)
-		else
-			-- ERRO
-			tentativas += 1
-			digitado=""
-			ShakeCard()
-			FlashDots(C.Perigo)
-			Tw2(cardBrd,0.15,{Color=C.Perigo,Transparency=0.1}):Play()
-			task.delay(0.4,function() Tw2(cardBrd,0.4,{Color=C.Borda,Transparency=0.25}):Play() end)
-
-			if maxTent > 0 and tentativas >= maxTent then
-				bloqueado=true
-				lblStatus.TextColor3=C.Perigo
-				lblStatus.Text="✕  Bloqueado"
-				iconLbl.Text="🔒"; iconFr.BackgroundColor3=Color3.fromRGB(60,15,15)
-				Tw2(cardBrd,0.2,{Color=C.Perigo,Transparency=0}):Play()
-				for _,b in pairs(btnRefs) do
-					Tw2(b,0.25,{BackgroundColor3=Color3.fromRGB(30,12,12)}):Play()
-				end
-				if cbBloq then task.delay(0.3,function() pcall(cbBloq) end) end
-			else
-				local restantes = maxTent > 0 and (maxTent-tentativas) or nil
-				if restantes then
-					lblStatus.TextColor3=C.Perigo
-					lblStatus.Text="✕  "..restantes.." tentativa"..(restantes==1 and "" or "s").." restante"..(restantes==1 and "" or "s")
-				else
-					lblStatus.TextColor3=C.Perigo; lblStatus.Text="✕  PIN incorreto"
-				end
-				task.delay(1.5,function() if not destruido then lblStatus.Text="" end end)
-				if cbErrar then pcall(cbErrar, tentativas) end
-			end
-			AtualizarDots()
-		end
-	end
-
-	-- criar botões do teclado
-	for row,linha in ipairs(layout) do
-		for col,label in ipairs(linha) do
-			local bx = PAD_OFF + (col-1)*(BTN_S+BTN_G)
-			local by = padY + (row-1)*(BTN_S+BTN_G)
-
-			local isConfirm = label=="✓"
-			local isDelete  = label=="←"
-			local isZero    = label=="0"
-
-			local bgCor = isConfirm and C.BotaoFundo or C.Item
-			local txtCor= isConfirm and C.BotaoTexto or C.Texto
-
-			local btn=Instance.new("TextButton")
-			btn.Size=UDim2.new(0,BTN_S,0,BTN_S)
-			btn.Position=UDim2.new(0,bx,0,by)
-			btn.BackgroundColor3=bgCor; btn.TextColor3=txtCor
-			btn.Text=label; btn.Font= isConfirm and Enum.Font.GothamBold or Enum.Font.Gotham
-			btn.TextSize=IS_MOBILE and 18 or 20
-			btn.AutoButtonColor=false; btn.ZIndex=4; btn.Parent=card
-			table.insert(btnRefs,btn)
-
-			local bc=Instance.new("UICorner"); bc.CornerRadius=UDim.new(0,14); bc.Parent=btn
-			local bb=Instance.new("UIStroke")
-			bb.Color = isConfirm and C.Destaque or C.Borda
-			bb.Thickness=1; bb.Transparency= isConfirm and 0.4 or 0.6; bb.Parent=btn
-
-			if isConfirm then
-				-- gradiente no botão confirmar
-				local cg=Instance.new("UIGradient")
-				cg.Color=ColorSequence.new(C.DestaqueV,C.BotaoFundo); cg.Rotation=135; cg.Parent=btn
-			end
-
-			-- hover / press
-			btn.MouseEnter:Connect(function()
-				if bloqueado then return end
-				Tw2(btn,0.1,{BackgroundColor3= isConfirm and C.BotaoHover or C.ItemHover}):Play()
-				Tw2(bb,0.1,{Transparency= isConfirm and 0.1 or 0.3}):Play()
-			end)
-			btn.MouseLeave:Connect(function()
-				Tw2(btn,0.1,{BackgroundColor3=bgCor}):Play()
-				Tw2(bb,0.1,{Transparency= isConfirm and 0.4 or 0.6}):Play()
-			end)
-			btn.MouseButton1Down:Connect(function()
-				if bloqueado then return end
-				Tw2(btn,0.07,{Size=UDim2.new(0,BTN_S-4,0,BTN_S-4),
-					Position=UDim2.new(0,bx+2,0,by+2)}):Play()
-			end)
-			btn.MouseButton1Up:Connect(function()
-				Tw2(btn,0.1,{Size=UDim2.new(0,BTN_S,0,BTN_S),
-					Position=UDim2.new(0,bx,0,by)},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
-			end)
-
-			btn.MouseButton1Click:Connect(function()
-				if bloqueado or destruido then return end
-				if isDelete then
-					if #digitado>0 then
-						digitado=string.sub(digitado,1,-2)
-						AtualizarDots()
-						lblStatus.Text=""
-					end
-				elseif isConfirm then
-					if #digitado==PIN_LEN then Verificar() end
-				else
-					if #digitado<PIN_LEN then
-						digitado=digitado..label
-						AtualizarDots()
-						-- auto-verificar quando completar
-						if #digitado==PIN_LEN then
-							task.delay(0.15,Verificar)
-						end
-					end
-				end
-			end)
-		end
-	end
-
-	-- suporte a teclado físico
-	local kbConn = EntradaUsuario.InputBegan:Connect(function(input, gp)
-		if gp or bloqueado or destruido then return end
-		if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-		local kc=input.KeyCode
-		-- dígitos
-		local numKeys={
-			[Enum.KeyCode.Zero]="0",[Enum.KeyCode.One]="1",[Enum.KeyCode.Two]="2",
-			[Enum.KeyCode.Three]="3",[Enum.KeyCode.Four]="4",[Enum.KeyCode.Five]="5",
-			[Enum.KeyCode.Six]="6",[Enum.KeyCode.Seven]="7",[Enum.KeyCode.Eight]="8",
-			[Enum.KeyCode.Nine]="9",
-			[Enum.KeyCode.KeypadZero]="0",[Enum.KeyCode.KeypadOne]="1",
-			[Enum.KeyCode.KeypadTwo]="2",[Enum.KeyCode.KeypadThree]="3",
-			[Enum.KeyCode.KeypadFour]="4",[Enum.KeyCode.KeypadFive]="5",
-			[Enum.KeyCode.KeypadSix]="6",[Enum.KeyCode.KeypadSeven]="7",
-			[Enum.KeyCode.KeypadEight]="8",[Enum.KeyCode.KeypadNine]="9",
-		}
-		local d=numKeys[kc]
-		if d and #digitado<PIN_LEN then
-			digitado=digitado..d; AtualizarDots()
-			if #digitado==PIN_LEN then task.delay(0.15,Verificar) end
-		elseif kc==Enum.KeyCode.Backspace and #digitado>0 then
-			digitado=string.sub(digitado,1,-2); AtualizarDots(); lblStatus.Text=""
-		elseif kc==Enum.KeyCode.Return or kc==Enum.KeyCode.KeypadEnter then
-			if #digitado==PIN_LEN then Verificar() end
-		end
-	end)
-
-	-- animação das partículas de fundo
-	local partConn = RunService.Heartbeat:Connect(function(dt)
-		if destruido then return end
-		for _,p in ipairs(partes) do
-			local curX = p.fr.Position.X.Scale
-			local curY = p.fr.Position.Y.Scale
-			local nx = curX + p.vx
-			local ny = curY + p.vy
-			if nx<0 or nx>1 then p.vx=-p.vx; nx=math.clamp(nx,0,1) end
-			if ny<0 or ny>1 then p.vy=-p.vy; ny=math.clamp(ny,0,1) end
-			p.fr.Position=UDim2.new(nx,0,ny,0)
-		end
-	end)
-
-	-- rainbow no topGlow e iconBrd se tema Neon
-	if isRainbow then
-		local t=0
-		RunService.Heartbeat:Connect(function(dt)
-			if destruido then return end
-			t=(t+dt*0.2)%1
-			local cor=Color3.fromHSV(t,0.55,0.9)
-			topGlow.BackgroundColor3=cor
-			iconBrd.Color=cor
-			cardBrd.Color=cor
-		end)
-	end
-
-	-- limpar conexões ao destruir a gui
-	gui.AncestryChanged:Connect(function()
-		if not gui.Parent then
-			destruido=true
-			pcall(function() kbConn:Disconnect() end)
-			pcall(function() partConn:Disconnect() end)
-		end
-	end)
-
-	-- retorna objeto com método :Destruir()
-	local obj={}
-	function obj:Destruir() Destruir(0) end
-	return obj
-end
 
 return Hub
