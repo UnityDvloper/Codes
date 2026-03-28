@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detecção de Vermelho em Tempo Real</title>
+<style>
+  body { margin: 0; font-family: sans-serif; text-align: center; background: #111; color: #fff; }
+  #video, #image, #canvas { width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto; }
+  #status { font-size: 20px; margin: 10px 0; }
+  #fileInput { margin: 10px; }
+</style>
+</head>
+<body>
+
+<h2>Detecção de Vermelho</h2>
+<input type="file" id="fileInput" accept="image/*,video/*">
+<video id="video" autoplay playsinline style="display:none;"></video>
+<img id="image" style="display:none;">
+<canvas id="canvas"></canvas>
+<div id="status">Aguardando...</div>
+<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+<script>
+const video = document.getElementById('video');
+const image = document.getElementById('image');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+const fileInput = document.getElementById('fileInput');
+const beep = document.getElementById('beep');
+
+let isVideo = false;
+
+// Função para detectar vermelho e desenhar recorte
+function detectRed() {
+  if (canvas.width === 0 || canvas.height === 0) return;
+
+  const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = frame.data;
+  let count = 0;
+
+  // Cria overlay para destacar vermelho
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    if (r > 150 && g < 100 && b < 100) {
+      count++;
+      // Destacar pixel vermelho com overlay amarelo
+      data[i] = 255;
+      data[i+1] = 255;
+      data[i+2] = 0;
+    }
+  }
+
+  ctx.putImageData(frame, 0, 0);
+
+  if (count > 500) { // Sensibilidade
+    status.textContent = "Vermelho detectado!";
+    if (!beep.playing) beep.play().catch(()=>{}); // Toca beep
+  } else {
+    status.textContent = "Nenhum vermelho detectado.";
+  }
+}
+
+// Função para processar vídeo em tempo real
+function processVideo() {
+  if (!isVideo) return;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  detectRed();
+  requestAnimationFrame(processVideo);
+}
+
+// Abrir câmera do celular
+function startCamera() {
+  isVideo = true;
+  image.style.display = 'none';
+  video.style.display = 'block';
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(stream => {
+      video.srcObject = stream;
+      video.play();
+      processVideo();
+    })
+    .catch(err => alert("Erro ao acessar a câmera: " + err));
+}
+
+// Upload de imagem ou vídeo
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+
+  if (file.type.startsWith('video/')) {
+    // Vídeo
+    isVideo = true;
+    image.style.display = 'none';
+    video.style.display = 'block';
+    video.src = url;
+    video.play();
+    video.addEventListener('loadeddata', processVideo);
+  } else if (file.type.startsWith('image/')) {
+    // Imagem
+    isVideo = false;
+    video.style.display = 'none';
+    image.style.display = 'block';
+    image.src = url;
+    image.onload = () => {
+      canvas.width = image.width;
+      canvas.height = image.height;
+      ctx.drawImage(image, 0, 0);
+      detectRed();
+    };
+  }
+});
+
+// Começa a câmera automaticamente ao abrir a página (opcional)
+startCamera();
+</script>
+
+</body>
+</html>
